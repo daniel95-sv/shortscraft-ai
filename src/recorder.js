@@ -13,7 +13,7 @@ export const VideoExporter = {
   recordedChunks: [],
 
   /**
-   * Starts real-time in-browser export
+   * Starts real-time in-browser export at 1080p
    */
   async exportVideo({ onProgress, onComplete, onError }) {
     if (this.isExporting) return;
@@ -24,6 +24,14 @@ export const VideoExporter = {
 
     this.isExporting = true;
     this.recordedChunks = [];
+
+    // Switch to Full HD 1080x1920 for export
+    Compositor.setResolution(1080, 1920);
+
+    const restorePreviewResolution = () => {
+      this.isExporting = false;
+      Compositor.setResolution(540, 960);
+    };
 
     try {
       // 1. Capture 60 FPS video stream from the canvas
@@ -62,7 +70,7 @@ export const VideoExporter = {
       };
 
       this.mediaRecorder.onstop = () => {
-        this.isExporting = false;
+        restorePreviewResolution();
         Compositor.pause();
 
         const blobType = selectedMime || 'video/webm';
@@ -107,7 +115,7 @@ export const VideoExporter = {
 
       Compositor.play();
     } catch (err) {
-      this.isExporting = false;
+      restorePreviewResolution();
       console.error('Export failed:', err);
       if (onError) onError(err.message || 'Error al iniciar la grabación del video');
     }
@@ -118,6 +126,7 @@ export const VideoExporter = {
       this.mediaRecorder.stop();
     }
     this.isExporting = false;
+    Compositor.setResolution(540, 960);
     Compositor.pause();
   },
 };

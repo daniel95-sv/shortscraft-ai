@@ -135,6 +135,7 @@ class AppController {
         Compositor.captionStyle = key;
         this.settings.captionStyle = key;
         StorageManager.saveSettings(this.settings);
+        Compositor.requestRender();
       });
       container.appendChild(card);
     });
@@ -197,6 +198,7 @@ class AppController {
       textarea.addEventListener('input', (e) => {
         scene.text = e.target.value;
         scene.words = TTSEngine.calculateWordTimestamps(scene.text, scene.durationSec);
+        Compositor.requestRender();
       });
 
       // Duration editing
@@ -207,6 +209,7 @@ class AppController {
         scene.words = TTSEngine.calculateWordTimestamps(scene.text, scene.durationSec);
         Compositor.loadProject(this.currentProject);
         this.updateTimeDisplay(Compositor.currentTimeSec, Compositor.totalDurationSec);
+        Compositor.requestRender();
       });
 
       // Preview single scene
@@ -331,6 +334,10 @@ class AppController {
 
   updatePlayPauseButton(isPlaying) {
     const playIconSvg = document.getElementById('playIconSvg');
+    const phoneScreen = document.getElementById('phoneScreen');
+    if (phoneScreen) {
+      phoneScreen.classList.toggle('is-playing', isPlaying);
+    }
     if (!playIconSvg) return;
 
     if (isPlaying) {
@@ -436,6 +443,7 @@ class AppController {
       fontSizeDisplay.textContent = `${val}px`;
       this.settings.fontSize = val;
       StorageManager.saveSettings(this.settings);
+      Compositor.requestRender();
     });
 
     const yPosRange = document.getElementById('yPosRange');
@@ -444,6 +452,7 @@ class AppController {
       const val = parseInt(e.target.value);
       Compositor.captionYPercent = val;
       yPosDisplay.textContent = `${val}%`;
+      Compositor.requestRender();
     });
 
     const bgTypeSelect = document.getElementById('bgTypeSelect');
@@ -451,11 +460,13 @@ class AppController {
       Compositor.bgType = e.target.value;
       this.settings.bgMotion = e.target.value;
       StorageManager.saveSettings(this.settings);
+      Compositor.requestRender();
     });
 
     const checkProgressBar = document.getElementById('checkProgressBar');
     checkProgressBar.addEventListener('change', (e) => {
       Compositor.showProgressBar = e.target.checked;
+      Compositor.requestRender();
     });
 
     // 5. Audio Controls: Voice, Rate, Volume, Music Mood, Custom Music

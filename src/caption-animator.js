@@ -2,6 +2,8 @@
  * Caption Animator
  * Renders viral word-by-word kinetic subtitles directly onto the 9:16 Canvas.
  * Supports Alex Hormozi style, MrBeast pop style, TikTok Neon, Clean Minimal, and Cyberpunk.
+ * 
+ * Optimized for high performance and fluid 60 FPS rendering.
  */
 
 export const CaptionAnimator = {
@@ -16,7 +18,7 @@ export const CaptionAnimator = {
       strokeWidthRatio: 0.16,
       scaleActive: 1.18,
       uppercase: true,
-      shadowBlur: 10,
+      shadowBlur: 6,
       shadowColor: 'rgba(0, 0, 0, 0.8)',
     },
 
@@ -32,7 +34,7 @@ export const CaptionAnimator = {
       uppercase: true,
       hasBadge: true,
       badgeColor: '#E11D48', // Vibrant red
-      shadowBlur: 15,
+      shadowBlur: 8,
       shadowColor: 'rgba(0,0,0,0.9)',
     },
 
@@ -46,7 +48,7 @@ export const CaptionAnimator = {
       strokeWidthRatio: 0.1,
       scaleActive: 1.12,
       uppercase: true,
-      shadowBlur: 25,
+      shadowBlur: 10,
       shadowColor: '#06B6D4',
     },
 
@@ -61,7 +63,7 @@ export const CaptionAnimator = {
       scaleActive: 1.08,
       uppercase: false,
       hasPill: true,
-      shadowBlur: 8,
+      shadowBlur: 4,
       shadowColor: 'rgba(0, 0, 0, 0.5)',
     },
 
@@ -75,7 +77,7 @@ export const CaptionAnimator = {
       strokeWidthRatio: 0.14,
       scaleActive: 1.15,
       uppercase: true,
-      shadowBlur: 18,
+      shadowBlur: 8,
       shadowColor: '#10B981',
     },
   },
@@ -101,6 +103,7 @@ export const CaptionAnimator = {
     const primaryColor = customColors?.primaryColor || style.textColor;
     const strokeColor = customColors?.strokeColor || style.strokeColor;
     const strokeWidth = fontSize * style.strokeWidthRatio;
+    const scale = canvasWidth / 1080;
 
     // Determine currently spoken word index
     let activeWordIndex = -1;
@@ -119,7 +122,7 @@ export const CaptionAnimator = {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Group words into short visual chunks (e.g. 3-4 words per display chunk for fast reading)
+    // Group words into short visual chunks (3-4 words per display chunk for fast reading)
     const chunkSize = 4;
     const currentChunkIndex = activeWordIndex >= 0 ? Math.floor(activeWordIndex / chunkSize) : 0;
     const chunkWords = words.slice(currentChunkIndex * chunkSize, (currentChunkIndex + 1) * chunkSize);
@@ -127,8 +130,9 @@ export const CaptionAnimator = {
     const centerY = canvasHeight * (yPercent / 100);
 
     // Measure total width of chunk
-    ctx.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
-    const wordSpacings = 18;
+    const fontString = `${style.fontWeight} ${Math.round(fontSize)}px ${style.fontFamily}`;
+    ctx.font = fontString;
+    const wordSpacings = Math.round(18 * scale);
 
     const measuredWords = chunkWords.map((item, localIdx) => {
       const globalIdx = currentChunkIndex * chunkSize + localIdx;
@@ -149,16 +153,16 @@ export const CaptionAnimator = {
 
     // Draw frosted glass pill backdrop if enabled
     if (style.hasPill) {
-      const pillPadX = 35;
-      const pillPadY = 22;
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+      const pillPadX = 35 * scale;
+      const pillPadY = 22 * scale;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
       ctx.beginPath();
       ctx.roundRect(
         canvasWidth / 2 - totalChunkWidth / 2 - pillPadX,
         centerY - fontSize * 0.7 - pillPadY / 2,
         totalChunkWidth + pillPadX * 2,
         fontSize * 1.4 + pillPadY,
-        30
+        Math.max(8, 20 * scale)
       );
       ctx.fill();
     }
@@ -175,17 +179,19 @@ export const CaptionAnimator = {
       // Pop-in scale animation for active word
       if (isActive) {
         ctx.scale(style.scaleActive, style.scaleActive);
+        if (style.shadowBlur) {
+          ctx.shadowBlur = style.shadowBlur;
+          ctx.shadowColor = style.shadowColor || 'rgba(0, 0, 0, 0.8)';
+        }
+      } else {
+        ctx.shadowBlur = 0;
       }
-
-      ctx.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
-      ctx.shadowBlur = isActive ? style.shadowBlur * 1.5 : style.shadowBlur;
-      ctx.shadowColor = isActive ? style.shadowColor : 'rgba(0, 0, 0, 0.7)';
 
       // Active badge background for MrBeast style
       if (isActive && style.hasBadge) {
         ctx.fillStyle = style.badgeColor;
         ctx.beginPath();
-        ctx.roundRect(-width / 2 - 12, -fontSize * 0.65, width + 24, fontSize * 1.3, 12);
+        ctx.roundRect(-width / 2 - 12 * scale, -fontSize * 0.65, width + 24 * scale, fontSize * 1.3, 10 * scale);
         ctx.fill();
       }
 
