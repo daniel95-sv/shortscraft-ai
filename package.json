@@ -1,0 +1,27 @@
+{
+  "name": "shortscraft-ai",
+  "version": "1.0.0",
+  "description": "Estudio web autónomo de generación de videos cortos (Shorts, Reels, TikTok) con IA, renderizado en cliente y listo para Cloudflare Pages.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "shorts",
+    "tiktok",
+    "reels",
+    "video-generator",
+    "cloudflare-pages",
+    "web-speech-api",
+    "canvas-video-compositor",
+    "subtitles",
+    "hormozi-style"
+  ],
+  "author": "ShortsCraft AI Team",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^6.2.0"
+  }
+}

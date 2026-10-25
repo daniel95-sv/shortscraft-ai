@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShortsCraft AI - Estudio Web de Videos Cortos para TikTok, Shorts y Reels</title>
+  <meta name="description" content="Generador autónomo de videos verticales cortos con IA, renderizado 100% en el navegador con Canvas 60 FPS, subtítulos estilo Hormozi/MrBeast y despliegue en Cloudflare.">
+  <meta name="theme-color" content="#090d16">
+
+  <!-- OpenGraph -->
+  <meta property="og:title" content="ShortsCraft AI - Generador Web de Shorts y Reels">
+  <meta property="og:description" content="Crea videos verticales virales directamente en tu navegador sin servidores pesados. Compatible con Cloudflare Pages.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@800;900&family=Outfit:wght@500;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="./styles/main.css">
+  <link rel="stylesheet" href="./styles/player.css">
+  <link rel="stylesheet" href="./styles/editor.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </div>
+      <div>
+        <h1 class="brand-title">ShortsCraft AI</h1>
+      </div>
+      <span class="brand-badge">Cloudflare Ready</span>
+    </div>
+
+    <div class="header-actions">
+      <button id="btnSettings" class="btn btn-secondary" title="Configurar API Keys">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+        <span>API Keys</span>
+      </button>
+
+      <button id="btnHeaderExport" class="btn btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>Exportar Video</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Studio Main Content -->
+  <main class="studio-container">
+    
+    <!-- Left Column: Controls, AI Generator & Scene Editor -->
+    <section class="panel">
+      <!-- Tabs Navigation -->
+      <nav class="tabs-nav" role="tablist">
+        <button class="tab-btn active" data-tab="tab-ai">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+          <span>Generar con IA</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-scenes">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 8 6 4-6 4Z"/></svg>
+          <span>Editor de Escenas</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-style">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
+          <span>Subtítulos & Estilo</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-audio">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <span>Voz & Música</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-seo">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="M16 3l-2 18"/></svg>
+          <span>SEO & Hashtags</span>
+        </button>
+      </nav>
+
+      <!-- TAB 1: AI GENERATOR -->
+      <div id="tab-ai" class="tab-content active">
+        <div class="form-group">
+          <label class="form-label">
+            <span>Fórmulas y Plantillas Virales de Alto Rendimiento</span>
+            <span style="color: var(--accent-cyan); font-size: 0.75rem;">100% Gratis sin APIs requeridas</span>
+          </label>
+          <div class="template-grid" id="templateGrid">
+            <!-- Dynamic Template Cards -->
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="topicInput">Tema o Idea Específica del Video</label>
+          <input type="text" id="topicInput" class="form-input" placeholder="Ej: La paradoja del tiempo, hábitos de los millonarios, misterios del océano...">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div class="form-group">
+            <label class="form-label" for="aiProviderSelect">Motor de Inteligencia Artificial</label>
+            <select id="aiProviderSelect" class="form-select">
+              <option value="template">Plantilla Inteligente Local (0 Costo / Sin Claves)</option>
+              <option value="gemini">Google Gemini 1.5 Flash (Requiere API Key)</option>
+              <option value="openai">OpenAI GPT-4o-mini (Requiere API Key)</option>
+              <option value="groq">Groq Llama 3 (Ultra Rápido / Requiere API Key)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="languageSelect">Idioma del Guión</label>
+            <select id="languageSelect" class="form-select">
+              <option value="es" selected>Español (Latam / España)</option>
+              <option value="en">English (US / UK)</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="btnGenerateScript" class="btn btn-primary" style="padding: 14px; font-size: 1rem; justify-content: center; margin-top: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+          <span>Crear Guión & Generar Short</span>
+        </button>
+      </div>
+
+      <!-- TAB 2: SCENES EDITOR (Dark2C Human-in-the-Loop) -->
+      <div id="tab-scenes" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.85rem; color: var(--text-secondary);">
+            Revisa, edita textos o reemplaza videos escena por escena antes de exportar.
+          </span>
+          <button id="btnAddScene" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
+            + Agregar Escena
+          </button>
+        </div>
+
+        <div class="scenes-list" id="scenesContainer">
+          <!-- Scene cards injected via JS -->
+        </div>
+      </div>
+
+      <!-- TAB 3: SUBTITLE & VISUAL STYLE -->
+      <div id="tab-style" class="tab-content">
+        <div class="form-group">
+          <label class="form-label">Estilo Cinético de Subtítulos (Palabra por Palabra)</label>
+          <div class="subtitle-styles-grid" id="subtitleStylesGrid">
+            <!-- Subtitle style cards -->
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="fontSizeRange">
+              <span>Tamaño de Fuente</span>
+              <span id="fontSizeDisplay">58px</span>
+            </label>
+            <input type="range" id="fontSizeRange" min="36" max="84" value="58" class="timeline-slider">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="yPosRange">
+              <span>Posición Vertical (Y)</span>
+              <span id="yPosDisplay">70%</span>
+            </label>
+            <input type="range" id="yPosRange" min="20" max="85" value="70" class="timeline-slider">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bgTypeSelect">Fondo Procedural 60 FPS (Sin APIs)</label>
+          <select id="bgTypeSelect" class="form-select">
+            <option value="cyber-grid">🌆 Cyberpunk Grid & Sun</option>
+            <option value="deep-space">🌌 Deep Space & Nebula Stars</option>
+            <option value="aurora-wave">🌈 Aurora Borealis Wave</option>
+            <option value="matrix-rain">💻 Matrix Cyber Rain</option>
+            <option value="satisfying-blocks">🧊 Satisfying Isometric Cubes</option>
+          </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+          <input type="checkbox" id="checkProgressBar" checked style="width: 18px; height: 18px; cursor: pointer;">
+          <label for="checkProgressBar" style="font-size: 0.88rem; cursor: pointer;">Mostrar barra de progreso superior tipo TikTok/Shorts</label>
+        </div>
+      </div>
+
+      <!-- TAB 4: AUDIO & VOICE -->
+      <div id="tab-audio" class="tab-content">
+        <div class="form-group">
+          <label class="form-label" for="voiceSelect">Voz del Locutor (Web Speech API)</label>
+          <select id="voiceSelect" class="form-select">
+            <!-- Loaded dynamically -->
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label" for="speechRateRange">
+              <span>Velocidad de Locución</span>
+              <span id="speechRateDisplay">1.15x</span>
+            </label>
+            <input type="range" id="speechRateRange" min="0.8" max="1.6" step="0.05" value="1.15" class="timeline-slider">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="musicVolRange">
+              <span>Volumen Música de Fondo</span>
+              <span id="musicVolDisplay">25%</span>
+            </label>
+            <input type="range" id="musicVolRange" min="0" max="1" step="0.05" value="0.25" class="timeline-slider">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="musicMoodSelect">Música de Fondo Procedural (Libre de Copyright)</label>
+          <select id="musicMoodSelect" class="form-select">
+            <option value="lofi">☕ Lofi Chill Beat (Relajante / Sabiduría)</option>
+            <option value="epic">⚔️ Epic Cinematic Pulse (Impactante / Historia)</option>
+            <option value="upbeat">⚡ Upbeat Cyber Trap (Energético / Tecnología)</option>
+            <option value="suspense">🕵️ Dark Suspense Drone (Misterio / Terror)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Subir Música Propia (Opcional MP3 / WAV)</label>
+          <input type="file" id="customMusicInput" accept="audio/*" class="form-input" style="padding: 8px;">
+        </div>
+      </div>
+
+      <!-- TAB 5: SEO & METADATA -->
+      <div id="tab-seo" class="tab-content">
+        <div class="metadata-box">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" style="margin: 0;">Título Viral Optimizado</label>
+            <button id="btnCopyTitle" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">Copiar Título</button>
+          </div>
+          <input type="text" id="metaTitleInput" class="form-input" readonly>
+        </div>
+
+        <div class="metadata-box">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" style="margin: 0;">Hashtags de Tendencia</label>
+            <button id="btnCopyHashtags" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">Copiar Hashtags</button>
+          </div>
+          <div class="metadata-tags-row" id="metaTagsContainer">
+            <!-- Tags injected -->
+          </div>
+        </div>
+
+        <div class="metadata-box">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" style="margin: 0;">Descripción para Redes</label>
+            <button id="btnCopyDesc" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">Copiar Descripción</button>
+          </div>
+          <textarea id="metaDescTextarea" class="form-textarea" rows="3" readonly></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: 9:16 Preview Simulator & Timeline Controls -->
+    <section class="preview-column">
+      <!-- Smartphone 9:16 Simulator Frame -->
+      <div class="phone-mockup">
+        <!-- Notch / Dynamic Island -->
+        <div class="phone-notch">
+          <div class="notch-camera"></div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="phone-screen" id="phoneScreen">
+          <canvas id="shortsCanvas"></canvas>
+
+          <!-- Floating Play Overlay -->
+          <div class="player-overlay" id="playerOverlay">
+            <div class="play-badge-icon" id="playBadgeIcon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Live Audio Visualizer Pill -->
+          <div class="audio-visualizer-pill">
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <span style="font-size: 0.68rem; font-weight: 700; color: #cbd5e1; letter-spacing: 0.05em;">LIVE 60FPS</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline Card -->
+      <div class="timeline-card">
+        <div class="timeline-scrubber">
+          <input type="range" id="timelineSlider" min="0" max="100" value="0" step="0.1" class="timeline-slider">
+          <div class="timeline-time-row">
+            <span id="currentTimeDisplay">00:00</span>
+            <span id="currentSceneDisplay">Escena 1/5</span>
+            <span id="totalTimeDisplay">00:00</span>
+          </div>
+        </div>
+
+        <div class="timeline-buttons-row">
+          <button id="btnRewind" class="btn-step" title="Retroceder 3s">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg>
+          </button>
+
+          <div class="timeline-center-controls">
+            <button id="btnPlayPause" class="btn-play-main" title="Reproducir / Pausar (Espacio)">
+              <svg id="playIconSvg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+          </div>
+
+          <button id="btnForward" class="btn-step" title="Avanzar 3s">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Panel CTA -->
+      <div class="export-panel-cta">
+        <button id="btnExportVideo" class="btn btn-success" style="padding: 16px; font-size: 1.05rem; justify-content: center; width: 100%;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Descargar Video Short MP4</span>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: Settings & API Keys -->
+  <div id="settingsModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <span>Configuración & API Keys</span>
+        </h2>
+        <button id="btnCloseSettings" class="btn-close-modal">✕</button>
+      </div>
+
+      <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.45;">
+        Tus claves se guardan de forma segura exclusivamente en tu navegador (LocalStorage). Ningún dato sensible es transmitido a servidores externos.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="apiKeyGemini">Google Gemini API Key (Recomendada / Gratis)</label>
+        <input type="password" id="apiKeyGemini" class="form-input" placeholder="AIzaSy...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="apiKeyOpenAI">OpenAI API Key (GPT-4o-mini)</label>
+        <input type="password" id="apiKeyOpenAI" class="form-input" placeholder="sk-proj-...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="apiKeyGroq">Groq Cloud API Key (Llama 3 Ultra Rápido)</label>
+        <input type="password" id="apiKeyGroq" class="form-input" placeholder="gsk_...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="apiKeyPexels">Pexels API Key (Para Búsqueda de Videos en Vivo)</label>
+        <input type="password" id="apiKeyPexels" class="form-input" placeholder="Clave de desarrollador Pexels...">
+      </div>
+
+      <button id="btnSaveSettings" class="btn btn-primary" style="justify-content: center; margin-top: 8px;">
+        Guardar Configuración
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: Exporting Video Progress -->
+  <div id="exportModal" class="modal-backdrop">
+    <div class="modal-card" style="text-align: center;">
+      <h2 class="modal-title" style="justify-content: center;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+        <span>Renderizando Video 1080p...</span>
+      </h2>
+      <p style="font-size: 0.88rem; color: var(--text-secondary);">
+        Compilando video vertical 9:16 a 60 FPS con audio sincronizado directamente en tu procesador.
+      </p>
+
+      <div class="export-progress-track">
+        <div id="exportProgressFill" class="export-progress-fill"></div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">
+        <span id="exportProgressPercent">0%</span>
+        <span id="exportProgressTime">0s / 0s</span>
+      </div>
+
+      <div id="exportSuccessBox" style="display: none; flex-direction: column; gap: 12px; margin-top: 10px;">
+        <div style="padding: 12px; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: var(--radius-md); color: #6ee7b7; font-size: 0.9rem; font-weight: 600;">
+          🎉 ¡Video Renderizado y Descargado con Éxito!
+        </div>
+        <a id="btnDownloadAgain" class="btn btn-success" style="justify-content: center; text-decoration: none;">
+          Descargar Nuevamente
+        </a>
+      </div>
+
+      <button id="btnCancelExport" class="btn btn-secondary" style="justify-content: center; margin-top: 8px;">
+        Cancelar
+      </button>
+    </div>
+  </div>
+
+  <!-- App Entry Script -->
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

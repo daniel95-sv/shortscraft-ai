@@ -1,0 +1,264 @@
+/* ==========================================================================
+   SHORTSCRAFT AI - 9:16 SMARTPHONE PLAYER SIMULATOR & TIMELINE CONTROLS
+   ========================================================================== */
+
+.preview-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  position: sticky;
+  top: 94px;
+}
+
+/* Smartphone Mockup Frame */
+.phone-mockup {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 9 / 16;
+  background: #000000;
+  border-radius: 40px;
+  padding: 12px;
+  box-shadow: 
+    0 25px 60px -15px rgba(0, 0, 0, 0.9),
+    0 0 0 2px rgba(255, 255, 255, 0.1),
+    0 0 35px -5px rgba(139, 92, 246, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Dynamic Island / Notch */
+.phone-notch {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 22px;
+  background: #000000;
+  border-radius: var(--radius-full);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.notch-camera {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #111827;
+  border: 1px solid #1f2937;
+}
+
+/* Screen Wrapper */
+.phone-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 30px;
+  overflow: hidden;
+  background: #050508;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Main 9:16 Canvas */
+#shortsCanvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Floating overlay on screen click */
+.player-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.phone-screen:hover .player-overlay {
+  opacity: 1;
+}
+
+.play-badge-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  transform: scale(0.95);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.player-overlay:hover .play-badge-icon {
+  transform: scale(1.08);
+}
+
+/* Live Audio Visualizer Pill */
+.audio-visualizer-pill {
+  position: absolute;
+  bottom: 24px;
+  right: 20px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 15;
+}
+
+.wave-bar {
+  width: 3px;
+  height: 14px;
+  background: var(--accent-cyan);
+  border-radius: 2px;
+  animation: wavePulse 0.8s ease-in-out infinite alternate;
+}
+
+.wave-bar:nth-child(2) { animation-delay: 0.2s; height: 18px; }
+.wave-bar:nth-child(3) { animation-delay: 0.4s; height: 10px; }
+.wave-bar:nth-child(4) { animation-delay: 0.1s; height: 16px; }
+
+@keyframes wavePulse {
+  0% { transform: scaleY(0.3); opacity: 0.5; }
+  100% { transform: scaleY(1.2); opacity: 1; }
+}
+
+/* Timeline Controls Card */
+.timeline-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-lg);
+}
+
+.timeline-scrubber {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeline-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.8);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.timeline-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+
+.timeline-time-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-buttons-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.timeline-center-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-play-main {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-play-main:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+}
+
+.btn-step {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, background 0.2s;
+}
+
+.btn-step:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Export CTA Section */
+.export-panel-cta {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
