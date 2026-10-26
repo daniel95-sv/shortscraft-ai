@@ -6,12 +6,22 @@ package-lock.json
 dist/
 .wrangler/
 
-# Environment files
+# Environment files & Private Keys (NEVER COMMIT)
 .env
 .env.local
 .env.*.local
+*.env
+!*.env.example
 
-# OS files
+# Private API notes and keys (NEVER COMMIT)
+API Short.txt
+*API*.txt
+*api*.txt
+*secret*
+*Secret*
+secrets/
+
+# OS and Log files
 .DS_Store
 Thumbs.db
 desktop.ini

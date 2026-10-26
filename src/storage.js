@@ -15,12 +15,15 @@ export const StorageManager = {
   getApiKeys() {
     try {
       const raw = localStorage.getItem(STORAGE_KEYS.API_KEYS);
-      return raw ? JSON.parse(raw) : {
-        gemini: '',
-        openai: '',
-        groq: '',
-        pexels: '',
-        elevenlabs: ''
+      const saved = raw ? JSON.parse(raw) : {};
+      const env = import.meta.env || {};
+
+      return {
+        gemini: (saved.gemini || env.VITE_GEMINI_API_KEY || '').trim(),
+        openai: (saved.openai || env.VITE_OPENAI_API_KEY || '').trim(),
+        groq: (saved.groq || env.VITE_GROQ_API_KEY || '').trim(),
+        pexels: (saved.pexels || env.VITE_PEXELS_API_KEY || '').trim(),
+        elevenlabs: (saved.elevenlabs || env.VITE_ELEVENLABS_API_KEY || '').trim(),
       };
     } catch (e) {
       console.warn('Failed to read API keys from localStorage', e);
