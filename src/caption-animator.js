@@ -67,6 +67,35 @@ export const CaptionAnimator = {
       shadowColor: 'rgba(0, 0, 0, 0.5)',
     },
 
+    fire: {
+      name: '🔥 Fuego Rojo / Naranja Viral',
+      fontFamily: "'Anton', 'Montserrat', sans-serif",
+      fontWeight: '900',
+      activeColor: '#FF3B00',
+      textColor: '#FFFFFF',
+      strokeColor: '#000000',
+      strokeWidthRatio: 0.16,
+      scaleActive: 1.16,
+      uppercase: true,
+      shadowBlur: 18,
+      shadowColor: '#FF5500',
+    },
+
+    box: {
+      name: '🎬 Caja Cineasta Oscura',
+      fontFamily: "'Montserrat', 'Anton', sans-serif",
+      fontWeight: '900',
+      activeColor: '#FFE600',
+      textColor: '#FFFFFF',
+      strokeColor: '#000000',
+      strokeWidthRatio: 0.12,
+      scaleActive: 1.10,
+      uppercase: true,
+      hasPill: true,
+      pillBgColor: 'rgba(0, 0, 0, 0.88)',
+      pillBorderColor: 'rgba(255, 255, 255, 0.15)',
+    },
+
     cyber: {
       name: '👾 Cyberpunk Glitch',
       fontFamily: "monospace, 'Outfit'",
@@ -95,6 +124,7 @@ export const CaptionAnimator = {
     fontSize = 58,
     yPercent = 70, // 70% from top (ideal 9:16 Shorts viewing zone)
     customColors = null,
+    fontFamilyOverride = null,
   }) {
     if (!words || words.length === 0) return;
 
@@ -104,6 +134,7 @@ export const CaptionAnimator = {
     const strokeColor = customColors?.strokeColor || style.strokeColor;
     const strokeWidth = fontSize * style.strokeWidthRatio;
     const scale = canvasWidth / 1080;
+    const effectiveFontFamily = fontFamilyOverride ? `'${fontFamilyOverride}', ${style.fontFamily}` : style.fontFamily;
 
     // Determine currently spoken word index
     let activeWordIndex = -1;
@@ -123,14 +154,14 @@ export const CaptionAnimator = {
     ctx.textBaseline = 'middle';
 
     // Group words into short visual chunks (3-4 words per display chunk for fast reading)
-    const chunkSize = 4;
+    const chunkSize = 3; // Fast TikTok/Shorts punchy chunk size
     const currentChunkIndex = activeWordIndex >= 0 ? Math.floor(activeWordIndex / chunkSize) : 0;
     const chunkWords = words.slice(currentChunkIndex * chunkSize, (currentChunkIndex + 1) * chunkSize);
 
     const centerY = canvasHeight * (yPercent / 100);
 
     // Measure total width of chunk
-    const fontString = `${style.fontWeight} ${Math.round(fontSize)}px ${style.fontFamily}`;
+    const fontString = `${style.fontWeight} ${Math.round(fontSize)}px ${effectiveFontFamily}`;
     ctx.font = fontString;
     const wordSpacings = Math.round(18 * scale);
 
@@ -151,11 +182,11 @@ export const CaptionAnimator = {
     const totalChunkWidth =
       measuredWords.reduce((sum, w) => sum + w.width, 0) + (measuredWords.length - 1) * wordSpacings;
 
-    // Draw frosted glass pill backdrop if enabled
+    // Draw frosted glass pill or cineasta box backdrop if enabled
     if (style.hasPill) {
       const pillPadX = 35 * scale;
       const pillPadY = 22 * scale;
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+      ctx.fillStyle = style.pillBgColor || 'rgba(15, 23, 42, 0.7)';
       ctx.beginPath();
       ctx.roundRect(
         canvasWidth / 2 - totalChunkWidth / 2 - pillPadX,
@@ -165,6 +196,11 @@ export const CaptionAnimator = {
         Math.max(8, 20 * scale)
       );
       ctx.fill();
+      if (style.pillBorderColor) {
+        ctx.strokeStyle = style.pillBorderColor;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
     }
 
     // Render each word

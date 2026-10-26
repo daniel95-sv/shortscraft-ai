@@ -38,6 +38,7 @@ export const Compositor = {
   // Settings
   bgType: 'cyber-grid',
   captionStyle: 'hormozi',
+  fontFamily: 'Anton',
   fontSize: 58,
   captionYPercent: 70,
   showProgressBar: true,
@@ -293,6 +294,7 @@ export const Compositor = {
         fontSize: this.fontSize * (w / 1080),
         yPercent: this.captionYPercent,
         customColors: this.customColors,
+        fontFamilyOverride: this.fontFamily,
       });
     }
 
@@ -319,7 +321,10 @@ export const Compositor = {
         const img = customMedia.element;
         const vw = img.naturalWidth || img.width || w;
         const vh = img.naturalHeight || img.height || h;
-        const subtleZoom = 1.0 + (timeSec % 6) * 0.02;
+        
+        // Ken Burns cinematic zoom: smooth 7% camera push over scene duration
+        const sceneProg = currentScene?.durationSec ? Math.min(1, Math.max(0, (timeSec % currentScene.durationSec) / currentScene.durationSec)) : ((timeSec % 5) / 5);
+        const subtleZoom = 1.0 + (sceneProg * 0.08);
         const scale = Math.max(w / vw, h / vh) * subtleZoom;
         const dw = vw * scale;
         const dh = vh * scale;
@@ -334,15 +339,14 @@ export const Compositor = {
   },
 
   drawContrastOverlay(ctx, w, h) {
-    const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, 'rgba(0, 0, 0, 0.45)');
-    grad.addColorStop(0.2, 'rgba(0, 0, 0, 0.05)');
-    grad.addColorStop(0.55, 'rgba(0, 0, 0, 0.1)');
-    grad.addColorStop(0.85, 'rgba(0, 0, 0, 0.6)');
-    grad.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+    const grad = ctx.createLinearGradient(0, h * 0.45, 0, h);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    grad.addColorStop(0.35, 'rgba(0, 0, 0, 0.25)');
+    grad.addColorStop(0.75, 'rgba(0, 0, 0, 0.7)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0.9)');
 
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0, h * 0.45, w, h * 0.55);
   },
 
   drawTopProgressBar(ctx, w, h) {

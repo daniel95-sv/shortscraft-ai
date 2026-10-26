@@ -88,6 +88,15 @@ body {
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-neon);
+  overflow: hidden;
+}
+
+.brand-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
 }
 
 .brand-title {
@@ -379,3 +388,169 @@ body {
   resize: vertical;
   min-height: 80px;
 }
+
+/* ==========================================================================
+   TOAST NOTIFICATION SYSTEM
+   ========================================================================== */
+.toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  max-width: calc(100% - 48px);
+}
+
+.toast-item {
+  background: rgba(18, 24, 38, 0.95);
+  border: 1px solid var(--border-color);
+  color: #ffffff;
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(99, 102, 241, 0.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+  animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.3s ease;
+}
+
+.toast-item.success { border-left: 4px solid #10b981; }
+.toast-item.error { border-left: 4px solid #ef4444; }
+.toast-item.warning { border-left: 4px solid #f59e0b; }
+.toast-item.info { border-left: 4px solid #38bdf8; }
+
+@keyframes toastSlideIn {
+  from { transform: translateX(60px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toastSlideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(60px); opacity: 0; }
+}
+
+/* ==========================================================================
+   PWA INSTALL BANNER
+   ========================================================================== */
+.pwa-install-banner {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: calc(100% - 48px);
+  max-width: 420px;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(99, 102, 241, 0.3);
+  z-index: 9999;
+  transform: translateY(140px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+}
+
+.pwa-install-banner.show {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ==========================================================================
+   MOBILE BOTTOM NAVIGATION BAR & RESPONSIVE DUAL-MODE
+   ========================================================================== */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(11, 15, 26, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid var(--border-color);
+  justify-content: space-around;
+  align-items: center;
+  padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.2s ease, transform 0.15s ease;
+}
+
+.nav-item svg {
+  width: 20px;
+  height: 20px;
+}
+
+.nav-item:hover, .nav-item.active {
+  color: var(--accent-cyan);
+}
+
+.nav-item.export-tab {
+  color: #34d399;
+}
+
+@media (max-width: 1024px) {
+  body {
+    padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav {
+    display: flex;
+  }
+
+  .pwa-install-banner {
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+
+  /* Mobile section toggling */
+  .studio-container {
+    display: flex;
+    flex-direction: column;
+    padding: 14px 16px;
+  }
+
+  /* When mobile studio view is active, switch visible panels */
+  .mobile-view-panel {
+    display: none !important;
+  }
+
+  .mobile-view-panel.mobile-active {
+    display: flex !important;
+    animation: fadeIn 0.2s ease forwards;
+  }
+}
+

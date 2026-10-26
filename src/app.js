@@ -37,6 +37,7 @@ class AppController {
     const canvas = document.getElementById('shortsCanvas');
     Compositor.init(canvas);
     Compositor.captionStyle = this.settings.captionStyle || 'hormozi';
+    Compositor.fontFamily = this.settings.fontFamily || 'Anton';
     Compositor.fontSize = this.settings.fontSize || 58;
     Compositor.bgType = this.settings.bgMotion || 'cyber-grid';
     Compositor.showProgressBar = this.settings.showProgressBar ?? true;
@@ -51,6 +52,9 @@ class AppController {
     this.renderSubtitleStyleCards();
     this.bindEvents();
     this.bindCompositorListeners();
+    this.bindFontSelector();
+    this.bindMobileNav();
+    this.initPWA();
 
     // 4. Load saved videos history
     this.loadVideosHistory();
@@ -424,19 +428,19 @@ class AppController {
     };
 
     // Phone screen click to toggle play
-    phoneScreen.addEventListener('click', (e) => {
+    phoneScreen?.addEventListener('click', (e) => {
       if (e.target.tagName === 'VIDEO') return;
       this.togglePlayPause();
     });
 
     // Timeline Slider input
-    timelineSlider.addEventListener('input', (e) => {
+    timelineSlider?.addEventListener('input', (e) => {
       const frac = parseFloat(e.target.value) / 100;
       Compositor.seek(frac * Compositor.totalDurationSec);
     });
 
     // Main Play/Pause Button
-    playPauseBtn.addEventListener('click', (e) => {
+    playPauseBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.togglePlayPause();
     });
@@ -915,12 +919,18 @@ class AppController {
         });
 
         this.setProject(generated);
+        this.showToast('¡Guión y escenas sincronizadas con éxito!', 'success');
 
-        // Switch automatically to Scene Editor tab so user sees the generated cards
-        const scenesTabBtn = document.querySelector('[data-tab="tab-scenes"]');
-        if (scenesTabBtn) scenesTabBtn.click();
+        // On mobile, switch smoothly to the live studio preview
+        if (window.innerWidth <= 1024) {
+          this.switchMobileView('studio');
+        } else {
+          // Switch automatically to Scene Editor tab so user sees the generated cards
+          const scenesTabBtn = document.querySelector('[data-tab="tab-scenes"]');
+          if (scenesTabBtn) scenesTabBtn.click();
+        }
       } catch (err) {
-        alert(`Error al generar guión: ${err.message}`);
+        this.showToast(`Error al generar guión: ${err.message}`, 'error', 5000);
       } finally {
         btnGenerate.disabled = false;
         btnGenerate.innerHTML = `
@@ -1038,31 +1048,236 @@ class AppController {
     this.bindExportModal();
   }
 
-  bindCopyButtons() {
-    const copy = (text, btn) => {
-      navigator.clipboard.writeText(text);
-      const original = btn.textContent;
-      btn.textContent = '¡Copiado!';
-      btn.style.borderColor = '#10b981';
-      setTimeout(() => {
-        btn.textContent = original;
-        btn.style.borderColor = '';
-      }, 1500);
+  // --- TOAST NOTIFICATION ENGINE ---
+  showToast(mensaje, tipo = 'info', duracion = 3500) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast-item ${tipo}`;
+
+    let icono = 'ℹ️';
+    if (tipo === 'success') icono = '✅';
+    else if (tipo === 'error') icono = '❌';
+    else if (tipo === 'warning') icono = '⚠️';
+
+    toast.innerHTML = `<span>${icono}</span> <span>${mensaje}</span>`;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.animation = 'toastSlideOut 0.3s forwards';
+      setTimeout(() => toast.remove(), 300);
+    }, duracion);
+  }
+
+  // --- SAFE CLIPBOARD COPY WITH FALLBACK ---
+  copyToClipboard(texto, btnElement = null, mensajeExito = '¡Copiado!') {
+    if (!texto) return;
+
+    const accionExito = () => {
+      if (btnElement) {
+        const originalHtml = btnElement.innerHTML;
+        btnElement.innerHTML = `✓ ${mensajeExito}`;
+        btnElement.style.color = 'var(--accent-emerald)';
+        btnElement.style.borderColor = 'var(--accent-emerald)';
+        setTimeout(() => {
+          btnElement.innerHTML = originalHtml;
+          btnElement.style.color = '';
+          btnElement.style.borderColor = '';
+        }, 2000);
+      }
+      this.showToast(mensajeExito, 'success', 2500);
     };
 
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(texto).then(accionExito).catch(() => {
+        this.fallbackCopiar(texto, accionExito);
+      });
+    } else {
+      this.fallbackCopiar(texto, accionExito);
+    }
+  }
+
+  fallbackCopiar(texto, callback) {
+    const textArea = document.createElement('textarea');
+    textArea.value = texto;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      if (callback) callback();
+    } catch (err) {
+      this.showToast('Por favor copia el texto manualmente', 'warning');
+    }
+    document.body.removeChild(textArea);
+  }
+
+  // --- PWA (PROGRESSIVE WEB APP) SUITE ---
+  initPWA() {
+    // Register Service Worker for rapid offline caching
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('ShortsCraft AI Service Worker Activo'))
+        .catch((err) => console.warn('SW registration:', err));
+    }
+
+    const pwaBanner = document.getElementById('pwa-banner');
+    const btnInstalar = document.getElementById('btnInstalarPWA');
+    const btnCerrar = document.getElementById('btnCerrarPWA');
+    const pwaDesc = document.getElementById('pwa-desc');
+
+    const estaEnModoApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const esIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    window.deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window.deferredPrompt = e;
+      if (!estaEnModoApp && !sessionStorage.getItem('pwa_banner_ignorado')) {
+        pwaBanner?.classList.add('show');
+      }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      window.deferredPrompt = null;
+      pwaBanner?.classList.remove('show');
+      this.showToast('¡ShortsCraft AI instalado con éxito!', 'success');
+    });
+
+    btnCerrar?.addEventListener('click', () => {
+      pwaBanner?.classList.remove('show');
+      sessionStorage.setItem('pwa_banner_ignorado', 'true');
+    });
+
+    btnInstalar?.addEventListener('click', async () => {
+      if (window.deferredPrompt) {
+        window.deferredPrompt.prompt();
+        const choice = await window.deferredPrompt.userChoice;
+        if (choice.outcome === 'accepted') {
+          pwaBanner?.classList.remove('show');
+        }
+        window.deferredPrompt = null;
+        return;
+      }
+
+      if (esIOS) {
+        this.showToast("Toca Compartir ⎋ en Safari y luego 'Agregar a Inicio'", 'info', 5000);
+        pwaBanner?.classList.remove('show');
+        return;
+      }
+
+      if (estaEnModoApp) {
+        this.showToast('La aplicación ya está instalada', 'success');
+        pwaBanner?.classList.remove('show');
+        return;
+      }
+
+      this.showToast('Para instalar: usa el menú de tu navegador y elige "Instalar aplicación"', 'info', 4000);
+    });
+
+    // Detect iOS instruction
+    if (esIOS && !estaEnModoApp && !sessionStorage.getItem('pwa_banner_ignorado')) {
+      if (pwaDesc) pwaDesc.textContent = "Pulsa Compartir ⎋ y 'Agregar a inicio' ⊕";
+      if (btnInstalar) btnInstalar.textContent = "Instrucciones";
+      pwaBanner?.classList.add('show');
+    }
+  }
+
+  // --- MOBILE BOTTOM NAVIGATION & DUAL VIEW ---
+  bindMobileNav() {
+    const navItems = document.querySelectorAll('.bottom-nav .nav-item');
+    navItems.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.targetPanel;
+        navItems.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.switchMobileView(target);
+      });
+    });
+  }
+
+  switchMobileView(view) {
+    const controlPanel = document.getElementById('mobileControlPanel');
+    const previewCol = document.getElementById('mobilePreviewColumn');
+    const isMobile = window.innerWidth <= 1024;
+
+    if (!isMobile) {
+      // On desktop, keep both panels visible and activate the tab
+      if (view === 'create') document.querySelector('[data-tab="tab-ai"]')?.click();
+      if (view === 'style') document.querySelector('[data-tab="tab-style"]')?.click();
+      if (view === 'seo') document.querySelector('[data-tab="tab-seo"]')?.click();
+      if (view === 'export') document.getElementById('btnHeaderExport')?.click();
+      return;
+    }
+
+    if (view === 'studio') {
+      controlPanel?.classList.remove('mobile-active');
+      previewCol?.classList.add('mobile-active');
+      previewCol?.scrollIntoView({ behavior: 'smooth' });
+    } else if (view === 'export') {
+      document.getElementById('btnHeaderExport')?.click();
+    } else {
+      previewCol?.classList.remove('mobile-active');
+      controlPanel?.classList.add('mobile-active');
+      controlPanel?.scrollIntoView({ behavior: 'smooth' });
+
+      if (view === 'create') document.querySelector('[data-tab="tab-ai"]')?.click();
+      if (view === 'style') document.querySelector('[data-tab="tab-style"]')?.click();
+      if (view === 'seo') document.querySelector('[data-tab="tab-seo"]')?.click();
+    }
+
+    // Sync active nav item
+    document.querySelectorAll('.bottom-nav .nav-item').forEach((b) => {
+      b.classList.toggle('active', b.dataset.targetPanel === view);
+    });
+  }
+
+  // --- TYPOGRAPHY SELECTOR ---
+  bindFontSelector() {
+    const fontSelect = document.getElementById('fontFamilySelect');
+    if (!fontSelect) return;
+
+    if (this.settings.fontFamily) {
+      fontSelect.value = this.settings.fontFamily;
+    }
+
+    fontSelect.addEventListener('change', (e) => {
+      const chosenFont = e.target.value;
+      Compositor.fontFamily = chosenFont;
+      this.settings.fontFamily = chosenFont;
+      StorageManager.saveSettings(this.settings);
+      Compositor.requestRender();
+      this.showToast(`Tipografía viral: ${chosenFont}`, 'info', 2000);
+    });
+  }
+
+  bindCopyButtons() {
     document.getElementById('btnCopyTitle')?.addEventListener('click', (e) => {
       const title = document.getElementById('metaTitleInput').value;
-      copy(title, e.target);
+      this.copyToClipboard(title, e.target, '¡Título Copiado!');
     });
 
     document.getElementById('btnCopyHashtags')?.addEventListener('click', (e) => {
       const tags = (this.currentProject?.hashtags || []).join(' ');
-      copy(tags, e.target);
+      this.copyToClipboard(tags, e.target, '¡Hashtags Copiados!');
     });
 
     document.getElementById('btnCopyDesc')?.addEventListener('click', (e) => {
       const desc = document.getElementById('metaDescTextarea').value;
-      copy(desc, e.target);
+      this.copyToClipboard(desc, e.target, '¡Copy Copiado!');
+    });
+
+    // Master Copy All SEO
+    document.getElementById('btnCopyAllSEO')?.addEventListener('click', (e) => {
+      const title = document.getElementById('metaTitleInput')?.value || '';
+      const tags = (this.currentProject?.hashtags || []).join(' ');
+      const desc = document.getElementById('metaDescTextarea')?.value || '';
+      const fullPackage = `${title}\n\n${desc}\n\n${tags}`.trim();
+      this.copyToClipboard(fullPackage, e.target, '¡Paquete SEO Copiado!');
     });
   }
 
@@ -1100,7 +1315,7 @@ class AppController {
       };
       StorageManager.saveApiKeys(this.apiKeys);
       closeModal();
-      alert('Configuración y API Keys guardadas en tu navegador.');
+      this.showToast('Configuración y API Keys guardadas en tu navegador', 'success');
     });
   }
 
@@ -1126,6 +1341,7 @@ class AppController {
       successBox.style.display = 'none';
       fillBar.style.width = '0%';
       percentDisplay.textContent = '0%';
+      this.showToast('Compilando video HD 1080p con audio sincronizado...', 'info', 3000);
 
       VideoExporter.exportVideo({
         onProgress: ({ percent, currentSec, totalSec }) => {
@@ -1154,13 +1370,14 @@ class AppController {
             createdAt: new Date().toLocaleTimeString(),
           });
 
-          // Show success state
+          // Show success state & toast
           successBox.style.display = 'flex';
           btnDownloadAgain.href = downloadUrl;
           btnDownloadAgain.download = filename;
+          this.showToast('🎉 ¡Video renderizado y descargado exitosamente!', 'success', 6000);
         },
         onError: (err) => {
-          alert(`Error durante la exportación: ${err}`);
+          this.showToast(`Error durante la exportación: ${err}`, 'error', 6000);
           exportModal.classList.remove('open');
         },
       });
@@ -1175,13 +1392,20 @@ class AppController {
       }
       VideoExporter.cancelExport();
       exportModal.classList.remove('open');
+      this.showToast('Exportación cancelada', 'info');
     });
   }
 }
 
 // Start app when DOM is ready
-window.addEventListener('DOMContentLoaded', () => {
+function initShortsCraft() {
   const app = new AppController();
   window.shortscraftApp = app;
   app.init();
-});
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', initShortsCraft);
+} else {
+  initShortsCraft();
+}

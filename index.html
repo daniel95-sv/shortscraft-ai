@@ -7,15 +7,38 @@
   <meta name="description" content="Generador autónomo de videos verticales cortos con IA, renderizado 100% en el navegador con Canvas 60 FPS, subtítulos estilo Hormozi/MrBeast y despliegue en Cloudflare.">
   <meta name="theme-color" content="#090d16">
 
-  <!-- OpenGraph -->
-  <meta property="og:title" content="ShortsCraft AI - Generador Web de Shorts y Reels">
-  <meta property="og:description" content="Crea videos verticales virales directamente en tu navegador sin servidores pesados. Compatible con Cloudflare Pages.">
+  <!-- OpenGraph / Social Share Preview -->
   <meta property="og:type" content="website">
+  <meta property="og:title" content="ShortsCraft AI - Generador Web de Shorts y Reels con IA">
+  <meta property="og:description" content="Crea videos verticales virales para TikTok, Shorts y Reels 100% en tu navegador con subtítulos cinéticos dinámicos a 60 FPS. Cero servidores.">
+  <meta property="og:image" content="/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="ShortsCraft AI - Estudio Web de Videos Virales">
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ShortsCraft AI - Generador Web de Shorts y Reels con IA">
+  <meta name="twitter:description" content="Crea videos verticales virales para TikTok, Shorts y Reels 100% en tu navegador con subtítulos cinéticos dinámicos a 60 FPS. Cero servidores.">
+  <meta name="twitter:image" content="/og-image.jpg">
+
+  <!-- Favicons & App Icons -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@800;900&family=Outfit:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Inter:wght@400;600;700&family=Montserrat:wght@800;900&family=Oswald:wght@700&family=Outfit:wght@500;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- PWA & Mobile Web App -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ShortsCraft AI">
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="./styles/main.css">
@@ -24,13 +47,31 @@
 </head>
 <body>
 
+  <!-- Floating Toast Notifications Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- PWA Install Prompt Banner -->
+  <div id="pwa-banner" class="pwa-install-banner">
+    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+      <div class="brand-icon" style="width: 44px; height: 44px; flex-shrink: 0; padding: 0; overflow: hidden; border-radius: 12px;">
+        <img src="/icon-192.png" alt="ShortsCraft AI" style="width: 100%; height: 100%; object-fit: cover;">
+      </div>
+      <div>
+        <h4 style="font-size: 0.92rem; font-weight: 800; color: #fff; line-height: 1.2;">Instalar ShortsCraft AI</h4>
+        <p id="pwa-desc" style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 2px;">Acceso nativo y pantalla completa</p>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button id="btnInstalarPWA" class="btn btn-primary" style="padding: 6px 14px; font-size: 0.82rem; font-weight: 700;">Instalar</button>
+      <button id="btnCerrarPWA" class="btn-close-modal" style="width: 28px; height: 28px;">✕</button>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="app-header">
     <div class="brand">
-      <div class="brand-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="5 3 19 12 5 21 5 3"></polygon>
-        </svg>
+      <div class="brand-icon" style="overflow: hidden; padding: 0; border: 1px solid rgba(255, 255, 255, 0.15);">
+        <img src="/icon-192.png" alt="ShortsCraft AI Logo" style="width: 100%; height: 100%; object-fit: cover;">
       </div>
       <div>
         <h1 class="brand-title">ShortsCraft AI</h1>
@@ -84,7 +125,7 @@
   <main class="studio-container">
     
     <!-- Left Column: Controls, AI Generator & Scene Editor -->
-    <section class="panel">
+    <section class="panel mobile-view-panel mobile-active" id="mobileControlPanel">
       <!-- Tabs Navigation -->
       <nav class="tabs-nav" role="tablist">
         <button class="tab-btn active" data-tab="tab-ai">
@@ -189,11 +230,15 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
           <div class="form-group">
-            <label class="form-label" for="fontSizeRange">
-              <span>Tamaño de Fuente</span>
-              <span id="fontSizeDisplay">58px</span>
-            </label>
-            <input type="range" id="fontSizeRange" min="36" max="84" value="58" class="timeline-slider">
+            <label class="form-label" for="fontFamilySelect">✏️ Tipografía Viral</label>
+            <select id="fontFamilySelect" class="form-select">
+              <option value="Anton" selected>Anton (Bold Viral TikTok/Shorts)</option>
+              <option value="Montserrat">Montserrat Black (Alex Hormozi)</option>
+              <option value="Bebas Neue">Bebas Neue (Titular Punchy)</option>
+              <option value="Oswald">Oswald (Moderno)</option>
+              <option value="Outfit">Outfit (Tecnológico)</option>
+              <option value="Impact">Impact Clásico</option>
+            </select>
           </div>
 
           <div class="form-group">
@@ -204,6 +249,14 @@
               <option value="top">⬆️ Arriba (25%)</option>
             </select>
           </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="fontSizeRange">
+            <span>Tamaño de Fuente</span>
+            <span id="fontSizeDisplay">58px</span>
+          </label>
+          <input type="range" id="fontSizeRange" min="36" max="84" value="58" class="timeline-slider">
         </div>
 
         <div class="form-group">
@@ -276,9 +329,21 @@
 
       <!-- TAB 5: SEO & METADATA -->
       <div id="tab-seo" class="tab-content">
+        <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: var(--radius-md); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px;">
+          <div>
+            <strong style="color: #ffffff; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+              <span>🚀 Suite de Crecimiento & SEO Viral</span>
+            </strong>
+            <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">Copia título CTR, copy persuasivo y hashtags con 1 clic</p>
+          </div>
+          <button id="btnCopyAllSEO" type="button" class="btn btn-primary" style="padding: 7px 16px; font-size: 0.82rem; font-weight: 700; white-space: nowrap;">
+            ⚡ Copiar Todo
+          </button>
+        </div>
+
         <div class="metadata-box">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <label class="form-label" style="margin: 0;">Título Viral Optimizado</label>
+            <label class="form-label" style="margin: 0;">Título Viral Optimizado (CTR)</label>
             <button id="btnCopyTitle" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">Copiar Título</button>
           </div>
           <input type="text" id="metaTitleInput" class="form-input" readonly>
@@ -296,11 +361,12 @@
 
         <div class="metadata-box">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <label class="form-label" style="margin: 0;">Descripción para Redes</label>
+            <label class="form-label" style="margin: 0;">Descripción / Copy Persuasivo</label>
             <button id="btnCopyDesc" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">Copiar Descripción</button>
           </div>
           <textarea id="metaDescTextarea" class="form-textarea" rows="3" readonly></textarea>
         </div>
+      </div>
       <!-- TAB 6: API REST & MCP (Developer & Automation Tools) -->
       <div id="tab-api" class="tab-content">
         <!-- Servidor Docker Status & Health -->
@@ -365,7 +431,7 @@
     </section>
 
     <!-- Right Column: Preview Simulator & Timeline Controls -->
-    <section class="preview-column">
+    <section class="preview-column mobile-view-panel" id="mobilePreviewColumn">
       <!-- Smartphone Simulator Frame -->
       <div class="phone-mockup" id="phoneMockupContainer">
         <!-- Notch / Dynamic Island -->
@@ -581,6 +647,30 @@
       </div>
     </div>
   </div>
+
+  <!-- Mobile Bottom Touch Navigation Bar -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="mNavCreate" data-target-panel="create">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+      <span>Crear</span>
+    </button>
+    <button class="nav-item" id="mNavStudio" data-target-panel="studio">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+      <span>Estudio</span>
+    </button>
+    <button class="nav-item" id="mNavStyle" data-target-panel="style">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
+      <span>Estilo</span>
+    </button>
+    <button class="nav-item" id="mNavSeo" data-target-panel="seo">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="M16 3l-2 18"/></svg>
+      <span>SEO</span>
+    </button>
+    <button class="nav-item export-tab" id="mNavExport" data-target-panel="export">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+      <span>Exportar</span>
+    </button>
+  </nav>
 
   <!-- App Entry Script -->
   <script type="module" src="./src/app.js"></script>

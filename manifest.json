@@ -1,0 +1,24 @@
+{
+  "name": "ShortsCraft AI - Estudio Web de Videos Virales",
+  "short_name": "ShortsCraft",
+  "description": "Crea videos verticales para TikTok, Reels y Shorts con IA, subtítulos cinéticos dinámicos y renderizado 100% en el navegador.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070709",
+  "theme_color": "#070709",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
