@@ -62,23 +62,11 @@ class AppController {
     // 5. Load initial starter project so preview is immediately alive
     this.loadInitialProject();
 
-    // 6. Check Docker server /health in background
-    this.checkInitialServerHealth();
-  }
-
-  async checkInitialServerHealth() {
-    const health = await ServerClient.checkHealth();
-    const badge = document.getElementById('serverStatusBadge');
-    if (health.ok) {
-      if (badge) {
-        badge.textContent = '● Docker Online (:3123)';
-        badge.className = 'brand-badge badge-server-online';
-      }
-    } else {
-      if (badge) {
-        badge.textContent = '● Servidor Offline (Usa Docker)';
-        badge.className = 'brand-badge badge-server-offline';
-      }
+    // 6. Restore saved server URL into input if user previously configured one
+    const savedServerUrl = ServerClient.getBaseUrl();
+    const serverInput = document.getElementById('serverUrlInput');
+    if (serverInput && savedServerUrl) {
+      serverInput.value = savedServerUrl;
     }
   }
 
@@ -505,51 +493,80 @@ class AppController {
     const bBtn = document.getElementById('btnModeBrowser');
     const sBtn = document.getElementById('btnModeServer');
     const badge = document.getElementById('connectionBadge');
-    const serverBadge = document.getElementById('serverStatusBadge');
     const exportBtnText = document.getElementById('btnExportVideoText');
 
     if (mode === 'browser') {
-      bBtn.classList.add('active');
-      sBtn.classList.remove('active');
-      badge.textContent = '● Web Engine Activo';
-      badge.className = 'brand-badge badge-browser';
+      if (bBtn) bBtn.classList.add('active');
+      if (sBtn) sBtn.classList.remove('active');
+      if (badge) {
+        badge.textContent = '● Web Engine Activo';
+        badge.className = 'brand-badge badge-browser';
+      }
       if (exportBtnText) exportBtnText.textContent = 'Descargar Video Short MP4 (Navegador)';
 
       // Restore canvas display
-      document.getElementById('serverVideoPlayer').style.display = 'none';
-      document.getElementById('shortsCanvas').style.display = 'block';
+      const player = document.getElementById('serverVideoPlayer');
+      const canvas = document.getElementById('shortsCanvas');
+      if (player) player.style.display = 'none';
+      if (canvas) canvas.style.display = 'block';
     } else {
-      sBtn.classList.add('active');
-      bBtn.classList.remove('active');
-      badge.textContent = '● Modo Docker / REST API';
-      badge.className = 'brand-badge badge-server-online';
-      if (exportBtnText) exportBtnText.textContent = 'Renderizar y Descargar con Docker (:3123)';
+      const serverUrl = ServerClient.getBaseUrl();
+      if (!serverUrl) {
+        this.showToast('Configura la URL de tu servidor en la pestaña "API & Servidor" para habilitar el modo remoto.', 'info');
+        this.setEngineMode('browser');
+        return;
+      }
 
-      // Trigger server check
+      if (sBtn) sBtn.classList.add('active');
+      if (bBtn) bBtn.classList.remove('active');
+      if (badge) {
+        badge.textContent = '● Modo Servidor Externo';
+        badge.className = 'brand-badge badge-server-online';
+      }
+      if (exportBtnText) exportBtnText.textContent = 'Renderizar y Descargar con Servidor';
+
+      // Trigger server check only if URL is explicitly configured
       this.checkServerHealthUI();
     }
     this.updatePayloadPreview();
   }
 
   async checkServerHealthUI() {
-    const url = (document.getElementById('serverUrlInput')?.value || ServerClient.defaultUrl).trim();
+    const input = document.getElementById('serverUrlInput');
+    const url = (input?.value || '').trim();
+    const badge = document.getElementById('serverStatusBadge');
+
+    if (!url) {
+      ServerClient.setBaseUrl('');
+      if (badge) {
+        badge.textContent = '● 100% Autónomo en Navegador';
+        badge.className = 'brand-badge badge-browser';
+      }
+      this.showToast('Ingresa la URL de tu servidor o VPS para probar la conexión.', 'info');
+      return false;
+    }
+
     ServerClient.setBaseUrl(url);
 
-    const badge = document.getElementById('serverStatusBadge');
-    if (badge) badge.textContent = 'Verificando...';
+    if (badge) {
+      badge.textContent = '● Verificando...';
+      badge.className = 'brand-badge';
+    }
 
     const health = await ServerClient.checkHealth(url);
     if (health.ok) {
       if (badge) {
-        badge.textContent = '● Docker Online (:3123)';
+        badge.textContent = '● Servidor Conectado';
         badge.className = 'brand-badge badge-server-online';
       }
+      this.showToast('¡Conexión exitosa con el servidor remoto!', 'success');
       return true;
     } else {
       if (badge) {
-        badge.textContent = '● Servidor Desconectado';
+        badge.textContent = '● Servidor No Disponible';
         badge.className = 'brand-badge badge-server-offline';
       }
+      this.showToast(`No se pudo conectar a ${url}. Verifica que esté activo y permita solicitudes CORS.`, 'error');
       return false;
     }
   }
@@ -684,6 +701,14 @@ class AppController {
 
   // --- DOCKER SERVER EXPORT PIPELINE ---
   async exportVideoViaServer() {
+    const baseUrl = ServerClient.getBaseUrl();
+    if (!baseUrl) {
+      this.showToast('No hay servidor externo configurado. Exportando con el motor autónomo del navegador...', 'info', 4000);
+      this.setEngineMode('browser');
+      document.getElementById('btnExportVideo')?.click();
+      return;
+    }
+
     const exportModal = document.getElementById('exportModal');
     const fillBar = document.getElementById('exportProgressFill');
     const percentDisplay = document.getElementById('exportProgressPercent');
@@ -767,7 +792,7 @@ class AppController {
       btnDownloadAgain.href = result.videoUrl;
       btnDownloadAgain.download = filename;
     } catch (err) {
-      alert(`Error en el servidor Docker: ${err.message}. Asegúrate de que el contenedor bilalnaseer/free-video-maker esté corriendo en el puerto 3123.`);
+      this.showToast(`Error en el servidor: ${err.message}`, 'error', 6000);
       exportModal.classList.remove('open');
     } finally {
       this.serverAbortController = null;
@@ -805,16 +830,20 @@ class AppController {
 
     // 5. API Tab controls: Health check & Catalog sync
     document.getElementById('btnCheckHealth')?.addEventListener('click', async () => {
-      const ok = await this.checkServerHealthUI();
-      alert(ok ? '¡Conexión exitosa con el servidor Docker (/health OK)!' : 'No se pudo conectar a localhost:3123. Revisa si Docker está encendido.');
+      await this.checkServerHealthUI();
     });
 
     document.getElementById('btnSyncServerCatalogs')?.addEventListener('click', async () => {
-      const catalogs = await ServerClient.syncCatalogs();
+      const baseUrl = ServerClient.getBaseUrl();
+      if (!baseUrl) {
+        this.showToast('Primero ingresa y prueba la URL de tu servidor.', 'info');
+        return;
+      }
+      const catalogs = await ServerClient.syncCatalogs(baseUrl);
       if (catalogs.voices.length) {
-        alert(`¡Catálogo sincronizado! ${catalogs.voices.length} voces Kokoro y ${catalogs.musicTags.length} géneros de música.`);
+        this.showToast(`¡Catálogo sincronizado! ${catalogs.voices.length} voces y ${catalogs.musicTags.length} géneros.`, 'success');
       } else {
-        alert('No se pudieron obtener catálogos. Verifica si el servidor está en ejecución.');
+        this.showToast('No se pudieron obtener catálogos del servidor remoto.', 'error');
       }
     });
 

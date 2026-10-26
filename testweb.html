@@ -133,9 +133,9 @@
         <div id="serverCredsPanel" class="hidden grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
           <div class="sm:col-span-8">
             <label class="block text-xs text-slate-400 mb-1">
-              URL del Servidor <code class="text-indigo-300">free-video-maker</code> (Por defecto <code class="text-slate-300">http://localhost:3123</code>)
+              URL del Servidor <code class="text-indigo-300">free-video-maker</code> (Opcional)
             </label>
-            <input id="serverUrlInput" type="text" value="http://localhost:3123"
+            <input id="serverUrlInput" type="text" placeholder="https://tu-servidor-remoto.com (opcional)"
               class="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
           </div>
           <div class="sm:col-span-4 flex gap-2">
@@ -1128,23 +1128,31 @@
     // MODO 2: CLIENTE REST OFICIAL (bilalnaseer/free-video-maker :3123)
     // =========================================================================
     function getServerBaseUrl() {
-      return (document.getElementById('serverUrlInput').value || 'http://localhost:3123').replace(/\/$/, '');
+      return (document.getElementById('serverUrlInput').value || '').trim().replace(/\/$/, '');
     }
 
     async function checkServerHealth() {
       const baseUrl = getServerBaseUrl();
       const badge = document.getElementById('connectionBadge');
+      if (!baseUrl) {
+        if (badge) {
+          badge.textContent = '● Modo Autónomo (Navegador)';
+          badge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-medium';
+        }
+        return false;
+      }
       try {
-        const res = await fetch(`${baseUrl}/health`);
+        const res = await fetch(`${baseUrl}/health`).catch(() => null);
+        if (!res) throw new Error('Offline');
         const data = await res.json();
         if (data && data.status === 'ok') {
-          badge.textContent = '● Docker Server Online (/health OK)';
+          badge.textContent = '● Servidor Online (/health OK)';
           badge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-medium';
-          setStatusPill('Conectado a localhost:3123', 'emerald');
+          setStatusPill(`Conectado a ${baseUrl}`, 'emerald');
           return true;
         }
       } catch (e) {
-        badge.textContent = '● Servidor Offline (Usa Docker o Modo Web)';
+        badge.textContent = '● Servidor Desconectado';
         badge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium';
       }
       return false;

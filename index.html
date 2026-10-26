@@ -36,6 +36,7 @@
 
   <!-- PWA & Mobile Web App -->
   <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ShortsCraft AI">
@@ -76,30 +77,12 @@
       <div>
         <h1 class="brand-title">ShortsCraft AI</h1>
       </div>
-      <span id="connectionBadge" class="brand-badge badge-browser header-desktop-only">● Web Engine Activo</span>
-    </div>
-
-    <!-- Engine Mode Selector (Desktop only) -->
-    <div class="engine-mode-selector header-desktop-only">
-      <button id="btnModeBrowser" class="engine-tab active" title="Renderizado en navegador con Canvas 60 FPS + Web Audio + MediaRecorder">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-        <span>Modo Navegador</span>
-      </button>
-      <button id="btnModeServer" class="engine-tab" title="Servidor Docker / Remotion / Kokoro :3123">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></svg>
-        <span>Docker / API :3123</span>
-      </button>
     </div>
 
     <div class="header-actions">
       <button id="btnToggleOrientation" class="btn btn-secondary btn-header-orientation" title="Cambiar orientación de video (9:16 vertical o 16:9 horizontal)">
         <span id="orientationIcon">📱</span>
         <span id="orientationText">9:16</span>
-      </button>
-
-      <button id="btnOpenDockerModal" class="btn btn-secondary header-desktop-only" title="Guía de despliegue Docker y Servidor MCP">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-        <span>Docker / MCP</span>
       </button>
 
       <button id="btnSettings" class="btn btn-secondary btn-header-settings" title="Configurar API Keys">
@@ -110,13 +93,13 @@
         <span class="header-btn-text">API Keys</span>
       </button>
 
-      <button id="btnHeaderExport" class="btn btn-primary header-desktop-only">
+      <button id="btnHeaderExport" class="btn btn-primary btn-header-export">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="7 10 12 15 17 10"></polyline>
           <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
-        <span>Exportar Video</span>
+        <span class="header-btn-text">Descargar Video</span>
       </button>
     </div>
   </header>
@@ -381,27 +364,27 @@
       </div>
       <!-- TAB 6: API REST & MCP (Developer & Automation Tools) -->
       <div id="tab-api" class="tab-content">
-        <!-- Servidor Docker Status & Health -->
+        <!-- Servidor Remoto / Local Opcional -->
         <div class="server-config-card">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <label class="form-label" style="margin: 0; display: flex; align-items: center; gap: 8px;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-              <span>Servidor Docker REST API (:3123)</span>
+              <span>Conexión de Servidor Propio (Opcional)</span>
             </label>
-            <span id="serverStatusBadge" class="brand-badge badge-browser">● Listo</span>
+            <span id="serverStatusBadge" class="brand-badge badge-browser">● 100% Autónomo en Navegador</span>
           </div>
 
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">
-            Conecta al backend oficial de <code>bilalnaseer/free-video-maker</code> para renderizar con Kokoro TTS + Whisper + Remotion en tu máquina.
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0; line-height: 1.45;">
+            ShortsCraft AI procesa tus videos de forma autónoma a 60 FPS dentro de tu navegador. Si dispones de un backend propio con Remotion o <code>bilalnaseer/free-video-maker</code>, puedes vincularlo aquí:
           </p>
 
           <div class="server-config-row">
-            <input type="text" id="serverUrlInput" class="form-input" value="http://localhost:3123" placeholder="http://localhost:3123">
+            <input type="text" id="serverUrlInput" class="form-input" placeholder="https://tu-servidor-remoto.com (opcional)">
             <button id="btnCheckHealth" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.82rem;">
-              Probar /health
+              Probar Conexión
             </button>
             <button id="btnSyncServerCatalogs" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.82rem;" title="Sincronizar voces Kokoro y tags de música">
-              Sincronizar Catálogo
+              Sincronizar
             </button>
           </div>
         </div>
@@ -427,14 +410,14 @@
 
         <!-- MCP Setup Box -->
         <div class="metadata-box" style="margin-top: 16px;">
-          <label class="form-label" style="margin: 0;">Configuración de Servidor MCP (Claude Desktop / Cursor)</label>
+          <label class="form-label" style="margin: 0;">Configuración de Servidor MCP (Claude Desktop / Cursor / n8n)</label>
           <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">
-            El servidor expone SSE en <code style="color: var(--accent-cyan);">http://localhost:3123/mcp/sse</code> con herramientas <code>create-short-video</code> y <code>get-video-status</code>.
+            Si configuras tu propio servidor MCP, expone Server-Sent Events en tu URL (ej: <code style="color: var(--accent-cyan);">https://tu-servidor-remoto.com/mcp/sse</code>):
           </p>
           <div class="terminal-box">{
   "mcpServers": {
     "free-video-maker": {
-      "url": "http://localhost:3123/mcp/sse"
+      "url": "https://tu-servidor-remoto.com/mcp/sse"
     }
   }
 }</div>
@@ -634,11 +617,11 @@
 
         <div>
           <strong style="color: #ffffff;">2. Conectar como Servidor MCP (Claude Desktop / Cursor / n8n):</strong>
-          <p style="font-size: 0.8rem; margin: 4px 0;">Expone Server-Sent Events en <code style="color: var(--accent-cyan);">http://localhost:3123/mcp/sse</code>:</p>
+          <p style="font-size: 0.8rem; margin: 4px 0;">Expone Server-Sent Events en tu servidor (ej: <code style="color: var(--accent-cyan);">https://tu-servidor.com/mcp/sse</code> o <code style="color: var(--accent-cyan);">http://localhost:3123/mcp/sse</code> en local):</p>
           <div class="terminal-box">{
   "mcpServers": {
     "free-video-maker": {
-      "url": "http://localhost:3123/mcp/sse"
+      "url": "https://tu-servidor.com/mcp/sse"
     }
   }
 }</div>

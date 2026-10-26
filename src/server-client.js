@@ -5,29 +5,37 @@
  */
 
 export const ServerClient = {
-  defaultUrl: 'http://localhost:3123',
+  defaultUrl: '',
 
   getBaseUrl() {
-    return (localStorage.getItem('shortscraft_server_url') || this.defaultUrl).replace(/\/$/, '');
+    return (localStorage.getItem('shortscraft_server_url') || this.defaultUrl || '').replace(/\/$/, '');
   },
 
   setBaseUrl(url) {
-    const clean = (url || this.defaultUrl).trim().replace(/\/$/, '');
-    localStorage.setItem('shortscraft_server_url', clean);
+    const clean = (url || '').trim().replace(/\/$/, '');
+    if (clean) {
+      localStorage.setItem('shortscraft_server_url', clean);
+    } else {
+      localStorage.removeItem('shortscraft_server_url');
+    }
     return clean;
   },
 
   /**
-   * Checks /health endpoint
+   * Checks /health endpoint safely without exposing errors
    */
   async checkHealth(baseUrl = this.getBaseUrl()) {
+    if (!baseUrl) {
+      return { ok: false, error: 'No se ha configurado ningún servidor externo.' };
+    }
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(`${baseUrl}/health`, { signal: controller.signal });
+      const res = await fetch(`${baseUrl}/health`, { signal: controller.signal }).catch(() => null);
       clearTimeout(timeoutId);
+      if (!res) return { ok: false, error: 'No se pudo conectar con el servidor configurado.' };
       if (!res.ok) return { ok: false, status: res.status };
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       return { ok: data && data.status === 'ok', data };
     } catch (err) {
       return { ok: false, error: err.message };
@@ -38,6 +46,9 @@ export const ServerClient = {
    * Fetches Kokoro TTS voices and music tags catalog from the server
    */
   async syncCatalogs(baseUrl = this.getBaseUrl()) {
+    if (!baseUrl) {
+      return { voices: [], musicTags: [] };
+    }
     try {
       const [voicesRes, musicRes] = await Promise.all([
         fetch(`${baseUrl}/api/voices`).catch(() => null),
@@ -47,15 +58,15 @@ export const ServerClient = {
       const result = { voices: [], musicTags: [] };
 
       if (voicesRes && voicesRes.ok) {
-        result.voices = await voicesRes.json();
+        result.voices = await voicesRes.json().catch(() => []);
       }
       if (musicRes && musicRes.ok) {
-        result.musicTags = await musicRes.json();
+        result.musicTags = await musicRes.json().catch(() => []);
       }
 
       return result;
     } catch (err) {
-      console.warn('Failed to sync catalogs from Docker server:', err);
+      console.warn('Failed to sync catalogs from server:', err);
       return { voices: [], musicTags: [] };
     }
   },
@@ -99,15 +110,19 @@ export const ServerClient = {
    * Generates a ready-to-run cURL command for terminal or MCP scripting
    */
   generateCurlCommand(baseUrl, payload) {
+    const host = baseUrl || 'https://tu-servidor-api.com';
     const jsonStr = JSON.stringify(payload, null, 2);
     const escaped = jsonStr.replace(/'/g, "'\\''");
-    return `curl --location '${baseUrl}/api/short-video' \\\n  --header 'Content-Type: application/json' \\\n  --data '${escaped}'`;
+    return `curl --location '${host}/api/short-video' \\\n  --header 'Content-Type: application/json' \\\n  --data '${escaped}'`;
   },
 
   /**
    * Submits a video generation task to POST /api/short-video
    */
   async submitVideo(payload, baseUrl = this.getBaseUrl()) {
+    if (!baseUrl) {
+      throw new Error('No se ha configurado ninguna URL de servidor.');
+    }
     const res = await fetch(`${baseUrl}/api/short-video`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -130,6 +145,9 @@ export const ServerClient = {
    * Polls GET /api/short-video/:id/status until ready or failed
    */
   async pollVideoStatus(videoId, { onProgress, baseUrl = this.getBaseUrl(), abortSignal } = {}) {
+    if (!baseUrl) {
+      throw new Error('No se ha configurado ninguna URL de servidor.');
+    }
     let status = 'processing';
     let pollCount = 0;
 
@@ -171,6 +189,7 @@ export const ServerClient = {
    * Fetches list of all videos on the Docker server
    */
   async getVideos(baseUrl = this.getBaseUrl()) {
+    if (!baseUrl) return [];
     try {
       const res = await fetch(`${baseUrl}/api/short-videos`);
       if (!res.ok) return [];
@@ -185,6 +204,7 @@ export const ServerClient = {
    * Deletes a video from the Docker server
    */
   async deleteVideo(videoId, baseUrl = this.getBaseUrl()) {
+    if (!baseUrl) return false;
     try {
       const res = await fetch(`${baseUrl}/api/short-video/${videoId}`, {
         method: 'DELETE',
