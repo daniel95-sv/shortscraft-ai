@@ -46,6 +46,8 @@ export const StorageManager = {
       const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
       return raw ? JSON.parse(raw) : {
         defaultVoice: '',
+        ttsEngine: 'webspeech',
+        elevenLabsVoiceId: 'CwhRBWXzGAHq8TQ4Fs17',
         speechRate: 1.15,
         speechPitch: 1.0,
         musicVolume: 0.25,

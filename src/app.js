@@ -44,6 +44,12 @@ class AppController {
     Compositor.paddingBackSec = this.paddingBackMs / 1000;
     Compositor.setOrientation(this.orientation);
 
+    // TTS & Voice engine setup
+    Compositor.ttsEngine = this.settings.ttsEngine || 'webspeech';
+    Compositor.elevenLabsApiKey = this.apiKeys.elevenlabs || '';
+    Compositor.elevenLabsVoiceId = this.settings.elevenLabsVoiceId || 'CwhRBWXzGAHq8TQ4Fs17';
+    Compositor.speechRate = this.settings.speechRate || 1.15;
+
     // 2. Load Speech Voices
     await this.initVoices();
 
@@ -72,28 +78,65 @@ class AppController {
 
   async initVoices() {
     const voiceSelect = document.getElementById('voiceSelect');
-    if (!voiceSelect) return;
-    const voices = await TTSEngine.loadVoices();
-    voiceSelect.innerHTML = '';
+    const elevenSelect = document.getElementById('elevenLabsVoiceSelect');
+    const ttsEngineSelect = document.getElementById('ttsEngineSelect');
+    const webGroup = document.getElementById('webSpeechVoiceGroup');
+    const elevenGroup = document.getElementById('elevenLabsVoiceGroup');
+    const engineBadge = document.getElementById('ttsEngineBadge');
 
-    // Prioritize Spanish and English voices
-    const sorted = [...voices].sort((a, b) => {
-      const aIsEs = a.lang.startsWith('es');
-      const bIsEs = b.lang.startsWith('es');
-      if (aIsEs && !bIsEs) return -1;
-      if (!aIsEs && bIsEs) return 1;
-      return a.name.localeCompare(b.name);
-    });
+    // 1. Sync engine selector
+    const currentEngine = this.settings.ttsEngine || 'webspeech';
+    if (ttsEngineSelect) {
+      ttsEngineSelect.value = currentEngine;
+    }
+    if (webGroup && elevenGroup) {
+      webGroup.style.display = currentEngine === 'webspeech' ? 'block' : 'none';
+      elevenGroup.style.display = currentEngine === 'elevenlabs' ? 'block' : 'none';
+    }
+    if (engineBadge) {
+      engineBadge.textContent = currentEngine === 'elevenlabs' ? 'Voces Hiperrealistas Activas' : '100% Gratis en Navegador';
+      engineBadge.style.color = currentEngine === 'elevenlabs' ? 'var(--accent-purple)' : 'var(--accent-cyan)';
+    }
 
-    sorted.forEach((v) => {
-      const opt = document.createElement('option');
-      opt.value = v.name;
-      opt.textContent = `${v.name} (${v.lang})${v.default ? ' ★' : ''}`;
-      if (this.settings.defaultVoice === v.name || (v.lang.startsWith('es') && !this.settings.defaultVoice)) {
-        opt.selected = true;
-      }
-      voiceSelect.appendChild(opt);
-    });
+    // 2. Load Web Speech voices
+    if (voiceSelect) {
+      const voices = await TTSEngine.loadVoices();
+      voiceSelect.innerHTML = '';
+      const sorted = [...voices].sort((a, b) => {
+        const aIsEs = a.lang.startsWith('es');
+        const bIsEs = b.lang.startsWith('es');
+        if (aIsEs && !bIsEs) return -1;
+        if (!aIsEs && bIsEs) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      sorted.forEach((v) => {
+        const opt = document.createElement('option');
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang})${v.default ? ' ★' : ''}`;
+        if (this.settings.defaultVoice === v.name || (v.lang.startsWith('es') && !this.settings.defaultVoice)) {
+          opt.selected = true;
+          Compositor.voiceName = v.name;
+        }
+        voiceSelect.appendChild(opt);
+      });
+    }
+
+    // 3. Load ElevenLabs voices
+    if (elevenSelect) {
+      const elevenVoices = await TTSEngine.loadElevenLabsVoices(this.apiKeys.elevenlabs);
+      elevenSelect.innerHTML = '';
+      elevenVoices.forEach((v) => {
+        const opt = document.createElement('option');
+        opt.value = v.voice_id;
+        opt.textContent = `${v.name}`;
+        if (this.settings.elevenLabsVoiceId === v.voice_id) {
+          opt.selected = true;
+          Compositor.elevenLabsVoiceId = v.voice_id;
+        }
+        elevenSelect.appendChild(opt);
+      });
+    }
   }
 
   loadInitialProject() {
@@ -924,8 +967,16 @@ class AppController {
     const btnGenerate = document.getElementById('btnGenerateScript');
     btnGenerate?.addEventListener('click', async () => {
       const topic = document.getElementById('topicInput').value.trim();
-      const provider = document.getElementById('aiProviderSelect').value;
+      let provider = document.getElementById('aiProviderSelect').value;
       const language = document.getElementById('languageSelect').value;
+
+      // Handle OpenAI absence gracefully without disrupting user
+      if (provider === 'openai' && !this.apiKeys.openai) {
+        this.showToast('ℹ️ No dispones de una clave de OpenAI. Usando Groq (gratis y ultra rápido)...', 'info', 4500);
+        provider = 'groq';
+        const sel = document.getElementById('aiProviderSelect');
+        if (sel) sel.value = 'groq';
+      }
 
       let apiKey = '';
       if (provider === 'gemini') apiKey = this.apiKeys.gemini;
@@ -948,7 +999,12 @@ class AppController {
         });
 
         this.setProject(generated);
-        this.showToast('¡Guión y escenas sincronizadas con éxito!', 'success');
+
+        if (generated.fallbackNotice) {
+          this.showToast(generated.fallbackNotice, 'warning', 6000);
+        } else {
+          this.showToast('¡Guión y escenas sincronizadas con éxito!', 'success');
+        }
 
         // On mobile, switch smoothly to the live studio preview
         if (window.innerWidth <= 768) {
@@ -1014,9 +1070,68 @@ class AppController {
     });
 
     // 13. Audio Controls: Voice, Rate, Volume, Music Mood, Custom Music
+    const ttsEngineSelect = document.getElementById('ttsEngineSelect');
+    const webGroup = document.getElementById('webSpeechVoiceGroup');
+    const elevenGroup = document.getElementById('elevenLabsVoiceGroup');
+    const engineBadge = document.getElementById('ttsEngineBadge');
+
+    ttsEngineSelect?.addEventListener('change', async (e) => {
+      const mode = e.target.value;
+      this.settings.ttsEngine = mode;
+      Compositor.ttsEngine = mode;
+      StorageManager.saveSettings(this.settings);
+
+      if (webGroup && elevenGroup) {
+        webGroup.style.display = mode === 'webspeech' ? 'block' : 'none';
+        elevenGroup.style.display = mode === 'elevenlabs' ? 'block' : 'none';
+      }
+      if (engineBadge) {
+        engineBadge.textContent = mode === 'elevenlabs' ? 'Voces Hiperrealistas Activas' : '100% Gratis en Navegador';
+        engineBadge.style.color = mode === 'elevenlabs' ? 'var(--accent-purple)' : 'var(--accent-cyan)';
+      }
+
+      if (mode === 'elevenlabs' && !this.apiKeys.elevenlabs) {
+        this.showToast('Configura tu clave gratuita de ElevenLabs en "API Keys" para activar voces de estudio', 'info', 5000);
+      } else if (mode === 'elevenlabs') {
+        this.showToast('Motor ElevenLabs activado: las voces se sincronizarán en el video', 'success', 3000);
+        await this.initVoices();
+      }
+    });
+
+    const elevenLabsVoiceSelect = document.getElementById('elevenLabsVoiceSelect');
+    elevenLabsVoiceSelect?.addEventListener('change', (e) => {
+      const voiceId = e.target.value;
+      this.settings.elevenLabsVoiceId = voiceId;
+      Compositor.elevenLabsVoiceId = voiceId;
+      StorageManager.saveSettings(this.settings);
+    });
+
+    // Preview sample button for ElevenLabs voice
+    document.getElementById('btnPreviewElevenVoice')?.addEventListener('click', async (e) => {
+      const btn = e.target;
+      const originalText = btn.textContent;
+      const voiceId = elevenLabsVoiceSelect?.value || 'CwhRBWXzGAHq8TQ4Fs17';
+      btn.textContent = '🔊 Generando...';
+      try {
+        await TTSEngine.speakText({
+          text: 'Hola, esta es una prueba de voz hiperrealista para tus videos de ShortsCraft AI.',
+          engine: 'elevenlabs',
+          elevenLabsApiKey: this.apiKeys.elevenlabs,
+          elevenLabsVoiceId: voiceId,
+          onEnd: () => {
+            btn.textContent = originalText;
+          },
+        });
+      } catch (err) {
+        this.showToast('No se pudo reproducir la muestra de voz.', 'error');
+        btn.textContent = originalText;
+      }
+    });
+
     const voiceSelect = document.getElementById('voiceSelect');
     voiceSelect?.addEventListener('change', (e) => {
       this.settings.defaultVoice = e.target.value;
+      Compositor.voiceName = e.target.value;
       StorageManager.saveSettings(this.settings);
       this.updatePayloadPreview();
     });
@@ -1341,12 +1456,14 @@ class AppController {
     const inpOpenAI = document.getElementById('apiKeyOpenAI');
     const inpGroq = document.getElementById('apiKeyGroq');
     const inpPexels = document.getElementById('apiKeyPexels');
+    const inpElevenLabs = document.getElementById('apiKeyElevenLabs');
 
     openBtn?.addEventListener('click', () => {
-      inpGemini.value = this.apiKeys.gemini || '';
-      inpOpenAI.value = this.apiKeys.openai || '';
-      inpGroq.value = this.apiKeys.groq || '';
-      inpPexels.value = this.apiKeys.pexels || '';
+      if (inpGemini) inpGemini.value = this.apiKeys.gemini || '';
+      if (inpOpenAI) inpOpenAI.value = this.apiKeys.openai || '';
+      if (inpGroq) inpGroq.value = this.apiKeys.groq || '';
+      if (inpPexels) inpPexels.value = this.apiKeys.pexels || '';
+      if (inpElevenLabs) inpElevenLabs.value = this.apiKeys.elevenlabs || '';
       modal.classList.add('open');
     });
 
@@ -1356,16 +1473,20 @@ class AppController {
       if (e.target === modal) closeModal();
     });
 
-    saveBtn?.addEventListener('click', () => {
+    saveBtn?.addEventListener('click', async () => {
       this.apiKeys = {
-        gemini: inpGemini.value.trim(),
-        openai: inpOpenAI.value.trim(),
-        groq: inpGroq.value.trim(),
-        pexels: inpPexels.value.trim(),
+        gemini: (inpGemini?.value || '').trim(),
+        openai: (inpOpenAI?.value || '').trim(),
+        groq: (inpGroq?.value || '').trim(),
+        pexels: (inpPexels?.value || '').trim(),
+        elevenlabs: (inpElevenLabs?.value || '').trim(),
       };
       StorageManager.saveApiKeys(this.apiKeys);
+      Compositor.elevenLabsApiKey = this.apiKeys.elevenlabs;
       closeModal();
       this.showToast('Configuración y API Keys guardadas en tu navegador', 'success');
+      // Reload ElevenLabs voices if key was updated
+      await this.initVoices();
     });
   }
 
@@ -1380,6 +1501,26 @@ class AppController {
     const successBox = document.getElementById('exportSuccessBox');
     const btnDownloadAgain = document.getElementById('btnDownloadAgain');
 
+    const closeExportBtn = document.getElementById('btnCloseExportModal');
+    const modalTitle = document.getElementById('exportModalTitle');
+
+    const closeExport = () => {
+      if (this.serverAbortController) {
+        this.serverAbortController.abort();
+      }
+      VideoExporter.cancelExport();
+      exportModal.classList.remove('open');
+      this.showToast('Ventana de exportación cerrada', 'info', 2000);
+    };
+
+    closeExportBtn?.addEventListener('click', closeExport);
+
+    exportModal?.addEventListener('click', (e) => {
+      if (e.target === exportModal && successBox.style.display !== 'none') {
+        closeExport();
+      }
+    });
+
     const startExport = () => {
       if (this.engineMode === 'server') {
         this.exportVideoViaServer();
@@ -1391,13 +1532,15 @@ class AppController {
       successBox.style.display = 'none';
       fillBar.style.width = '0%';
       percentDisplay.textContent = '0%';
+      if (btnCancel) btnCancel.textContent = 'Cancelar';
+      if (modalTitle) modalTitle.textContent = 'Renderizando Video 1080p...';
       this.showToast('Compilando video HD 1080p con audio sincronizado...', 'info', 3000);
 
       VideoExporter.exportVideo({
-        onProgress: ({ percent, currentSec, totalSec }) => {
+        onProgress: ({ percent, currentSec, totalSec, status }) => {
           fillBar.style.width = `${percent}%`;
           percentDisplay.textContent = `${percent}%`;
-          timeDisplay.textContent = `${currentSec.toFixed(1)}s / ${totalSec.toFixed(1)}s`;
+          timeDisplay.textContent = status || `${currentSec.toFixed(1)}s / ${totalSec.toFixed(1)}s`;
         },
         onComplete: ({ downloadUrl, filename, blob }) => {
           // Automatic trigger
@@ -1424,6 +1567,8 @@ class AppController {
           successBox.style.display = 'flex';
           btnDownloadAgain.href = downloadUrl;
           btnDownloadAgain.download = filename;
+          if (btnCancel) btnCancel.textContent = 'Listo / Cerrar';
+          if (modalTitle) modalTitle.textContent = '🎉 ¡Video Renderizado!';
           this.showToast('🎉 ¡Video renderizado y descargado exitosamente!', 'success', 6000);
         },
         onError: (err) => {
@@ -1435,15 +1580,7 @@ class AppController {
 
     btnExport?.addEventListener('click', startExport);
     btnHeaderExport?.addEventListener('click', startExport);
-
-    btnCancel?.addEventListener('click', () => {
-      if (this.serverAbortController) {
-        this.serverAbortController.abort();
-      }
-      VideoExporter.cancelExport();
-      exportModal.classList.remove('open');
-      this.showToast('Exportación cancelada', 'info');
-    });
+    btnCancel?.addEventListener('click', closeExport);
   }
 }
 

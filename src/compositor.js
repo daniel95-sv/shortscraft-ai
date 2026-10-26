@@ -186,6 +186,13 @@ export const Compositor = {
     }
   },
 
+  // TTS Config
+  voiceName: '',
+  speechRate: 1.15,
+  ttsEngine: 'webspeech', // 'webspeech' | 'elevenlabs'
+  elevenLabsApiKey: '',
+  elevenLabsVoiceId: 'CwhRBWXzGAHq8TQ4Fs17',
+
   speakCurrentScene() {
     const info = this.getCurrentSceneInfo();
     if (!info || !info.scene) return;
@@ -193,6 +200,11 @@ export const Compositor = {
     AudioMixer.setSpeechActive(true);
     TTSEngine.speakText({
       text: info.scene.text,
+      voiceName: this.voiceName,
+      rate: this.speechRate || 1.15,
+      engine: this.ttsEngine || 'webspeech',
+      elevenLabsApiKey: this.elevenLabsApiKey || '',
+      elevenLabsVoiceId: this.elevenLabsVoiceId || 'CwhRBWXzGAHq8TQ4Fs17',
       onEnd: () => {
         AudioMixer.setSpeechActive(false);
       },

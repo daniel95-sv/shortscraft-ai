@@ -347,13 +347,21 @@ export const AIEngine = {
    */
   async generateScript({ topic, templateKey, provider, apiKey, customPrompt, language = 'es' }) {
     // If user selected a built-in template or has no API key, use the instant rich template engine
-    if (!apiKey || provider === 'template' || !provider) {
+    if (provider === 'template' || !provider) {
       const template = VIRAL_TEMPLATES[templateKey] || VIRAL_TEMPLATES.curiosities;
       return template.generator(topic);
     }
 
+    if (!apiKey) {
+      if (provider === 'openai') {
+        throw new Error('No has configurado una API Key de OpenAI. Puedes usar Google Gemini o Groq (gratuitos), o la Plantilla Inteligente Local sin APIs.');
+      } else {
+        throw new Error(`No has configurado la API Key para ${provider.toUpperCase()}. Configúrala en el botón "API Keys" o usa la Plantilla Inteligente Local.`);
+      }
+    }
+
     const systemPrompt = `You are a world-class viral short-form video scriptwriter (for TikTok, YouTube Shorts, and Instagram Reels).
-Generate a high-converting, gripping 9:16 vertical video script about: "${topic || customPrompt}".
+Generate a high-converting, gripping 9:16 vertical video script about: "${topic || customPrompt || 'curiosidades asombrosas'}".
 Language: ${language === 'es' ? 'Spanish (Español)' : 'English'}.
 Strictly follow the Viral Hook formula:
 1. Hook in the first 3 seconds (curiosity gap, controversial statement, or suspense).
@@ -381,46 +389,124 @@ You MUST reply ONLY with valid JSON following this exact structure, with no mark
       let rawText = '';
 
       if (provider === 'gemini') {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: systemPrompt }] }],
-              generationConfig: { responseMimeType: 'application/json', temperature: 0.8 },
-            }),
-          }
-        );
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error?.message || `Gemini API error (${response.status})`);
-        }
-        const data = await response.json();
-        rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      } else if (provider === 'openai' || provider === 'groq') {
-        const endpoint =
-          provider === 'groq'
-            ? 'https://api.groq.com/openai/v1/chat/completions'
-            : 'https://api.openai.com/v1/chat/completions';
-        const model = provider === 'groq' ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini';
+        // Cascade through active models in Google AI Studio
+        const geminiModels = [
+          'gemini-3.5-flash',
+          'gemini-3.8-flash',
+          'gemini-flash-latest',
+          'gemini-3.1-flash-lite',
+          'gemini-2.5-flash',
+          'gemini-1.5-flash'
+        ];
 
-        const response = await fetch(endpoint, {
+        let lastErr = null;
+        for (const model of geminiModels) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 16000);
+
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: controller.signal,
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: systemPrompt }] }],
+                  generationConfig: { responseMimeType: 'application/json', temperature: 0.8 },
+                }),
+              }
+            );
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+              const data = await response.json();
+              const textPart = data.candidates?.[0]?.content?.parts?.find((p) => typeof p.text === 'string');
+              rawText = textPart?.text || '';
+              if (rawText) break;
+            } else {
+              const errData = await response.json().catch(() => ({}));
+              lastErr = new Error(errData.error?.message || `Gemini status ${response.status}`);
+            }
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+
+        if (!rawText) {
+          throw lastErr || new Error('No se pudo obtener respuesta de ningún modelo de Gemini');
+        }
+      } else if (provider === 'groq') {
+        // Supported models for Groq free accounts
+        const groqModels = [
+          'qwen/qwen3.8-27b',
+          'allam-2-7b',
+          'openai/gpt-oss-120b',
+          'llama-3.3-70b-versatile',
+          'llama-3.1-8b-instant'
+        ];
+
+        let lastErr = null;
+        for (const model of groqModels) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 16000);
+
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+              },
+              signal: controller.signal,
+              body: JSON.stringify({
+                model,
+                messages: [{ role: 'user', content: systemPrompt }],
+                temperature: 0.75,
+                response_format: { type: 'json_object' },
+              }),
+            });
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+              const data = await response.json();
+              rawText = data.choices?.[0]?.message?.content || '';
+              if (rawText) break;
+            } else {
+              const errData = await response.json().catch(() => ({}));
+              lastErr = new Error(errData.error?.message || `Groq status ${response.status}`);
+            }
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+
+        if (!rawText) {
+          throw lastErr || new Error('No se pudo obtener respuesta de los modelos de Groq');
+        }
+      } else if (provider === 'openai') {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 16000);
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${apiKey}`,
           },
+          signal: controller.signal,
           body: JSON.stringify({
-            model,
+            model: 'gpt-4o-mini',
             messages: [{ role: 'user', content: systemPrompt }],
             temperature: 0.8,
             response_format: { type: 'json_object' },
           }),
         });
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error?.message || `${provider} API error (${response.status})`);
+          throw new Error(errData.error?.message || `OpenAI status ${response.status}`);
         }
         const data = await response.json();
         rawText = data.choices?.[0]?.message?.content || '';

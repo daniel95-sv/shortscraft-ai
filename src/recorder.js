@@ -6,6 +6,7 @@
 
 import { Compositor } from './compositor.js';
 import { AudioMixer } from './audio-mixer.js';
+import { TTSEngine } from './tts-engine.js';
 
 export const VideoExporter = {
   isExporting: false,
@@ -24,6 +25,28 @@ export const VideoExporter = {
 
     this.isExporting = true;
     this.recordedChunks = [];
+
+    // Pre-cache ElevenLabs audio buffers if enabled to avoid export stutters
+    if (Compositor.ttsEngine === 'elevenlabs' && Compositor.elevenLabsApiKey) {
+      if (onProgress) {
+        onProgress({
+          percent: 0,
+          currentSec: 0,
+          totalSec: Compositor.totalDurationSec,
+          status: 'Sincronizando voces hiperrealistas ElevenLabs...',
+        });
+      }
+      try {
+        await TTSEngine.pregenerateProjectElevenLabs({
+          project: Compositor.project,
+          voiceId: Compositor.elevenLabsVoiceId,
+          apiKey: Compositor.elevenLabsApiKey,
+        });
+        Compositor.loadProject(Compositor.project);
+      } catch (err) {
+        console.warn('ElevenLabs pre-generation warning:', err);
+      }
+    }
 
     // Switch to Full HD (1080x1920 portrait or 1920x1080 landscape) for export
     if (Compositor.orientation === 'landscape') {

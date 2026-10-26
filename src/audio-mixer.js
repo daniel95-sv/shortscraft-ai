@@ -33,11 +33,12 @@ export const AudioMixer = {
     this.musicGain = this.ctx.createGain();
     this.musicGain.gain.value = this.targetVolume;
 
-    this.sfxGain = this.ctx.createGain();
-    this.sfxGain.gain.value = 0.4;
+    this.speechGain = this.ctx.createGain();
+    this.speechGain.gain.value = 1.0;
 
     this.musicGain.connect(this.masterGain);
     this.sfxGain.connect(this.masterGain);
+    this.speechGain.connect(this.masterGain);
 
     // Connect to hardware speakers
     this.masterGain.connect(this.ctx.destination);
@@ -45,6 +46,47 @@ export const AudioMixer = {
     // Media stream destination for MediaRecorder canvas video recording
     this.mediaStreamDest = this.ctx.createMediaStreamDestination();
     this.masterGain.connect(this.mediaStreamDest);
+  },
+
+  /**
+   * Plays an audio buffer (e.g. ElevenLabs AI speech) through speechGain.
+   * Feeds directly into both hardware speakers and MediaStreamDestination for video recording!
+   */
+  playSpeechBuffer(buffer, onEnd) {
+    this.init();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.stopSpeechBuffer();
+
+    if (!buffer) {
+      if (onEnd) onEnd();
+      return null;
+    }
+
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(this.speechGain);
+
+    this.currentSpeechSource = source;
+    this.setSpeechActive(true);
+
+    source.onended = () => {
+      this.setSpeechActive(false);
+      this.currentSpeechSource = null;
+      if (onEnd) onEnd();
+    };
+
+    source.start(0);
+    return source;
+  },
+
+  stopSpeechBuffer() {
+    if (this.currentSpeechSource) {
+      try {
+        this.currentSpeechSource.stop();
+      } catch (e) {}
+      this.currentSpeechSource = null;
+      this.setSpeechActive(false);
+    }
   },
 
   getMediaStream() {

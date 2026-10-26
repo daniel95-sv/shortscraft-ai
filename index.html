@@ -171,9 +171,9 @@
             <label class="form-label" for="aiProviderSelect">Motor de Inteligencia Artificial</label>
             <select id="aiProviderSelect" class="form-select">
               <option value="template">Plantilla Inteligente Local (0 Costo / Sin Claves)</option>
-              <option value="gemini">Google Gemini 1.5 Flash (Requiere API Key)</option>
-              <option value="openai">OpenAI GPT-4o-mini (Requiere API Key)</option>
-              <option value="groq">Groq Llama 3 (Ultra Rápido / Requiere API Key)</option>
+              <option value="gemini">Google Gemini (Gemini Flash Gratuito)</option>
+              <option value="groq">Groq Cloud (Llama 3 / Qwen Ultra Rápido Gratuito)</option>
+              <option value="openai">OpenAI GPT-4o-mini (Requiere API Key de Pago)</option>
             </select>
           </div>
 
@@ -282,10 +282,36 @@
       <!-- TAB 4: AUDIO & VOICE -->
       <div id="tab-audio" class="tab-content">
         <div class="form-group">
+          <label class="form-label" for="ttsEngineSelect">
+            <span>Motor de Voz (TTS)</span>
+            <span id="ttsEngineBadge" style="color: var(--accent-cyan); font-size: 0.75rem;">100% Gratis en Navegador</span>
+          </label>
+          <select id="ttsEngineSelect" class="form-select">
+            <option value="webspeech" selected>🔊 Web Speech API (Nativo del Navegador - 0 Costo / Sin Claves)</option>
+            <option value="elevenlabs">✨ ElevenLabs AI (Voces Hiperrealistas con IA)</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="webSpeechVoiceGroup">
           <label class="form-label" for="voiceSelect">Voz del Locutor (Web Speech API)</label>
           <select id="voiceSelect" class="form-select">
             <!-- Loaded dynamically -->
           </select>
+        </div>
+
+        <div class="form-group" id="elevenLabsVoiceGroup" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" for="elevenLabsVoiceSelect" style="margin: 0;">Voz Hiperrealista ElevenLabs</label>
+            <button id="btnPreviewElevenVoice" type="button" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" title="Escuchar muestra de esta voz">
+              ▶ Escuchar Muestra
+            </button>
+          </div>
+          <select id="elevenLabsVoiceSelect" class="form-select">
+            <!-- Loaded dynamically from ElevenLabs -->
+          </select>
+          <span style="font-size: 0.75rem; color: #34d399; margin-top: 5px; display: block;">
+            ✓ Las voces ElevenLabs se sincronizan e integran directamente en el audio del video descargado.
+          </span>
         </div>
 
         <div class="form-row-responsive">
@@ -531,37 +557,62 @@
       </p>
 
       <div class="form-group">
-        <label class="form-label" for="apiKeyGemini">Google Gemini API Key (Recomendada / Gratis)</label>
+        <label class="form-label" for="apiKeyGemini">
+          <span>Google Gemini API Key</span>
+          <span style="color: var(--accent-emerald); font-size: 0.72rem; font-weight: 700;">Gratis en AI Studio</span>
+        </label>
         <input type="password" id="apiKeyGemini" class="form-input" placeholder="AIzaSy...">
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="apiKeyOpenAI">OpenAI API Key (GPT-4o-mini)</label>
-        <input type="password" id="apiKeyOpenAI" class="form-input" placeholder="sk-proj-...">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="apiKeyGroq">Groq Cloud API Key (Llama 3 Ultra Rápido)</label>
+        <label class="form-label" for="apiKeyGroq">
+          <span>Groq Cloud API Key</span>
+          <span style="color: var(--accent-cyan); font-size: 0.72rem; font-weight: 700;">Ultra Rápido / Gratis</span>
+        </label>
         <input type="password" id="apiKeyGroq" class="form-input" placeholder="gsk_...">
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="apiKeyPexels">Pexels API Key (Para Búsqueda de Videos en Vivo)</label>
+        <label class="form-label" for="apiKeyElevenLabs">
+          <span>ElevenLabs API Key</span>
+          <span style="color: var(--accent-purple); font-size: 0.72rem; font-weight: 700;">Voces Hiperrealistas con IA</span>
+        </label>
+        <input type="password" id="apiKeyElevenLabs" class="form-input" placeholder="sk_...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="apiKeyPexels">
+          <span>Pexels API Key</span>
+          <span style="color: var(--accent-amber); font-size: 0.72rem; font-weight: 700;">B-Roll y Clips Gratis</span>
+        </label>
         <input type="password" id="apiKeyPexels" class="form-input" placeholder="Clave de desarrollador Pexels...">
       </div>
 
-      <button id="btnSaveSettings" class="btn btn-primary" style="justify-content: center; margin-top: 8px;">
-        Guardar Configuración
-      </button>
+      <div class="form-group">
+        <label class="form-label" for="apiKeyOpenAI">
+          <span>OpenAI API Key (Opcional)</span>
+          <span style="color: var(--text-muted); font-size: 0.72rem;">Requiere Cuenta con Saldo</span>
+        </label>
+        <input type="password" id="apiKeyOpenAI" class="form-input" placeholder="sk-proj-... (Opcional)">
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button id="btnSaveSettings" class="btn btn-primary" style="flex: 1; justify-content: center;">
+          Guardar Configuración
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- MODAL: Exporting Video Progress -->
   <div id="exportModal" class="modal-backdrop">
-    <div class="modal-card" style="text-align: center;">
+    <div class="modal-card" style="text-align: center; position: relative;">
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 2px;">
+        <button id="btnCloseExportModal" class="btn-close-modal" title="Cerrar">✕</button>
+      </div>
       <h2 class="modal-title" style="justify-content: center;">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
-        <span>Renderizando Video 1080p...</span>
+        <span id="exportModalTitle">Renderizando Video 1080p...</span>
       </h2>
       <p style="font-size: 0.88rem; color: var(--text-secondary);">
         Compilando video vertical 9:16 a 60 FPS con audio sincronizado directamente en tu procesador.
