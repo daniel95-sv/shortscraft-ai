@@ -21,6 +21,8 @@ export const Compositor = {
   height: 960,
   baseWidth: 1080,
   baseHeight: 1920,
+  orientation: 'portrait', // 'portrait' (9:16) or 'landscape' (16:9)
+  paddingBackSec: 1.5, // 1500ms tail time after last narration
 
   project: null,
   isPlaying: false,
@@ -51,13 +53,29 @@ export const Compositor = {
     // Request optimized 2D context
     this.ctx = this.canvas.getContext('2d', { alpha: false, desynchronized: true });
     
-    // Set preview resolution to 540x960 (4x fewer pixels, ultra-crisp preview on 360px mockup)
-    this.width = 540;
-    this.height = 960;
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
-
+    this.setOrientation(this.orientation);
     // Draw initial frame on demand (no idle looping)
+    this.requestRender();
+  },
+
+  setOrientation(orientation) {
+    this.orientation = orientation === 'landscape' ? 'landscape' : 'portrait';
+    if (this.orientation === 'landscape') {
+      this.baseWidth = 1920;
+      this.baseHeight = 1080;
+      this.width = 960;
+      this.height = 540;
+    } else {
+      this.baseWidth = 1080;
+      this.baseHeight = 1920;
+      this.width = 540;
+      this.height = 960;
+    }
+
+    if (this.canvas) {
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
+    }
     this.requestRender();
   },
 
@@ -90,7 +108,7 @@ export const Compositor = {
       }
     });
 
-    this.totalDurationSec = accTime;
+    this.totalDurationSec = accTime + (this.paddingBackSec || 0);
     this.seek(0);
     this.requestRender();
   },
@@ -289,15 +307,23 @@ export const Compositor = {
 
     if (customMedia) {
       if (customMedia.type === 'video' && customMedia.element) {
-        ctx.drawImage(customMedia.element, 0, 0, w, h);
+        const vid = customMedia.element;
+        const vw = vid.videoWidth || w;
+        const vh = vid.videoHeight || h;
+        const scale = Math.max(w / vw, h / vh);
+        const dw = vw * scale;
+        const dh = vh * scale;
+        ctx.drawImage(vid, (w - dw) / 2, (h - dh) / 2, dw, dh);
         return;
       } else if (customMedia.type === 'image' && customMedia.element) {
-        const scale = 1.0 + (timeSec % 5) * 0.03;
-        ctx.save();
-        ctx.translate(w / 2, h / 2);
-        ctx.scale(scale, scale);
-        ctx.drawImage(customMedia.element, -w / 2, -h / 2, w, h);
-        ctx.restore();
+        const img = customMedia.element;
+        const vw = img.naturalWidth || img.width || w;
+        const vh = img.naturalHeight || img.height || h;
+        const subtleZoom = 1.0 + (timeSec % 6) * 0.02;
+        const scale = Math.max(w / vw, h / vh) * subtleZoom;
+        const dw = vw * scale;
+        const dh = vh * scale;
+        ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
         return;
       }
     }

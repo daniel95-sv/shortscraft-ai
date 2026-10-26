@@ -50,6 +50,86 @@ export const MediaService = {
     }
   },
 
+  JOKER_TERMS: ['nature', 'globe', 'space', 'ocean'],
+
+  /**
+   * Automatically fetch & preload a real HD video clip from Pexels for a list of terms,
+   * falling back to joker terms if initial terms yield no results.
+   */
+  async fetchPexelsVideoForTerms(searchTerms = [], orientation = 'portrait', apiKey = '') {
+    if (!apiKey) return null;
+
+    const termsToTry = [...(searchTerms || []), ...this.JOKER_TERMS];
+    const targetOrientation = orientation === 'landscape' ? 'landscape' : 'portrait';
+
+    for (const term of termsToTry) {
+      if (!term || typeof term !== 'string') continue;
+      try {
+        const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(term.trim())}&orientation=${targetOrientation}&per_page=4&size=medium`;
+        const res = await fetch(url, { headers: { Authorization: apiKey } });
+        if (!res.ok) continue;
+
+        const data = await res.json();
+        if (data.videos && data.videos.length > 0) {
+          const chosen = data.videos[Math.floor(Math.random() * data.videos.length)];
+          const file = chosen.video_files.find((f) => f.quality === 'hd' || f.quality === 'sd') || chosen.video_files[0];
+          if (file && file.link) {
+            const vid = document.createElement('video');
+            vid.crossOrigin = 'anonymous';
+            vid.src = file.link;
+            vid.muted = true;
+            vid.loop = true;
+            vid.playsInline = true;
+
+            await new Promise((resolve) => {
+              vid.oncanplay = resolve;
+              vid.onerror = resolve;
+              setTimeout(resolve, 3500); // 3.5s timeout safeguard
+            });
+
+            return {
+              type: 'video',
+              element: vid,
+              url: file.link,
+              pexelsId: chosen.id,
+              author: chosen.user?.name || 'Pexels Creator',
+              query: term,
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Fallback Pexels term query failed:', term, err);
+      }
+    }
+    return null;
+  },
+
+  /**
+   * Pre-fetches B-Roll clips for all scenes in a project
+   */
+  async autoFetchBrollForProject(project, orientation = 'portrait', apiKey = '', onProgress = null) {
+    if (!project || !project.scenes || !apiKey) return;
+
+    const total = project.scenes.length;
+    for (let i = 0; i < total; i++) {
+      const scene = project.scenes[i];
+      if (this.customMedia.has(scene.id)) continue; // Keep user-uploaded media
+
+      if (onProgress) {
+        onProgress({ current: i + 1, total, sceneIndex: i });
+      }
+
+      const terms = scene.searchTerms && scene.searchTerms.length
+        ? scene.searchTerms
+        : (scene.keyword ? scene.keyword.split(/\s+/).filter(Boolean) : []);
+
+      const media = await this.fetchPexelsVideoForTerms(terms, orientation, apiKey);
+      if (media) {
+        this.customMedia.set(scene.id, media);
+      }
+    }
+  },
+
   /**
    * Sets custom media (video or image) uploaded by the user for a specific scene
    */
@@ -71,6 +151,18 @@ export const MediaService = {
       img.src = objectUrl;
       this.customMedia.set(sceneId, { type: 'image', element: img, url: objectUrl });
     }
+  },
+
+  setMediaForScene(sceneId, mediaObj) {
+    this.customMedia.set(sceneId, mediaObj);
+  },
+
+  removeCustomMedia(sceneId) {
+    this.customMedia.delete(sceneId);
+  },
+
+  clearAllCustomMedia() {
+    this.customMedia.clear();
   },
 
   getCustomMedia(sceneId) {

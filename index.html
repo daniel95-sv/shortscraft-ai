@@ -35,10 +35,32 @@
       <div>
         <h1 class="brand-title">ShortsCraft AI</h1>
       </div>
-      <span class="brand-badge">Cloudflare Ready</span>
+      <span id="connectionBadge" class="brand-badge badge-browser">● Web Engine Activo</span>
+    </div>
+
+    <!-- Engine Mode Selector -->
+    <div class="engine-mode-selector">
+      <button id="btnModeBrowser" class="engine-tab active" title="Renderizado en navegador con Canvas 60 FPS + Web Audio + MediaRecorder">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        <span>Modo Navegador</span>
+      </button>
+      <button id="btnModeServer" class="engine-tab" title="Servidor Docker / Remotion / Kokoro :3123">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></svg>
+        <span>Docker / API :3123</span>
+      </button>
     </div>
 
     <div class="header-actions">
+      <button id="btnToggleOrientation" class="btn btn-secondary" title="Cambiar orientación de video (9:16 vertical o 16:9 horizontal)">
+        <span id="orientationIcon">📱</span>
+        <span id="orientationText">9:16</span>
+      </button>
+
+      <button id="btnOpenDockerModal" class="btn btn-secondary" title="Guía de despliegue Docker y Servidor MCP">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        <span>Docker / MCP</span>
+      </button>
+
       <button id="btnSettings" class="btn btn-secondary" title="Configurar API Keys">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
@@ -84,6 +106,10 @@
         <button class="tab-btn" data-tab="tab-seo">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="M16 3l-2 18"/></svg>
           <span>SEO & Hashtags</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-api">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          <span>API & MCP</span>
         </button>
       </nav>
 
@@ -132,13 +158,19 @@
 
       <!-- TAB 2: SCENES EDITOR (Dark2C Human-in-the-Loop) -->
       <div id="tab-scenes" class="tab-content">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
           <span style="font-size: 0.85rem; color: var(--text-secondary);">
-            Revisa, edita textos o reemplaza videos escena por escena antes de exportar.
+            Revisa, edita textos, reordena escenas y personaliza términos Pexels.
           </span>
-          <button id="btnAddScene" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
-            + Agregar Escena
-          </button>
+          <div style="display: flex; gap: 8px;">
+            <button id="btnAutoFetchBroll" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" title="Buscar y descargar clips de Pexels para todas las escenas">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect width="14" height="14" x="1" y="5" rx="2"/></svg>
+              <span>Auto B-Roll Pexels</span>
+            </button>
+            <button id="btnAddScene" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
+              + Agregar Escena
+            </button>
+          </div>
         </div>
 
         <div class="scenes-list" id="scenesContainer">
@@ -165,12 +197,21 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="yPosRange">
-              <span>Posición Vertical (Y)</span>
-              <span id="yPosDisplay">70%</span>
-            </label>
-            <input type="range" id="yPosRange" min="20" max="85" value="70" class="timeline-slider">
+            <label class="form-label" for="captionPosSelect">Posición del Subtítulo</label>
+            <select id="captionPosSelect" class="form-select">
+              <option value="bottom" selected>⬇️ Abajo (70% - Estándar)</option>
+              <option value="center">⏺️ Centro (50% - Estilo Hormozi)</option>
+              <option value="top">⬆️ Arriba (25%)</option>
+            </select>
           </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="paddingBackRange">
+            <span>Silencio / Cola Final tras la Narración (paddingBack)</span>
+            <span id="paddingBackDisplay" style="color: var(--accent-purple); font-weight: 700;">1500 ms</span>
+          </label>
+          <input type="range" id="paddingBackRange" min="0" max="5000" step="250" value="1500" class="timeline-slider">
         </div>
 
         <div class="form-group">
@@ -260,21 +301,82 @@
           </div>
           <textarea id="metaDescTextarea" class="form-textarea" rows="3" readonly></textarea>
         </div>
+      <!-- TAB 6: API REST & MCP (Developer & Automation Tools) -->
+      <div id="tab-api" class="tab-content">
+        <!-- Servidor Docker Status & Health -->
+        <div class="server-config-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" style="margin: 0; display: flex; align-items: center; gap: 8px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+              <span>Servidor Docker REST API (:3123)</span>
+            </label>
+            <span id="serverStatusBadge" class="brand-badge badge-browser">● Listo</span>
+          </div>
+
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">
+            Conecta al backend oficial de <code>bilalnaseer/free-video-maker</code> para renderizar con Kokoro TTS + Whisper + Remotion en tu máquina.
+          </p>
+
+          <div class="server-config-row">
+            <input type="text" id="serverUrlInput" class="form-input" value="http://localhost:3123" placeholder="http://localhost:3123">
+            <button id="btnCheckHealth" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.82rem;">
+              Probar /health
+            </button>
+            <button id="btnSyncServerCatalogs" class="btn btn-secondary" style="padding: 8px 14px; font-size: 0.82rem;" title="Sincronizar voces Kokoro y tags de música">
+              Sincronizar Catálogo
+            </button>
+          </div>
+        </div>
+
+        <!-- Payload Generator & cURL -->
+        <div class="metadata-box" style="margin-top: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <label class="form-label" style="margin: 0;">Payload Exacto REST API (POST /api/short-video)</label>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">Compatible con n8n, Make, Python, cURL y agentes MCP</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button id="btnCopyPayloadJson" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">
+                Copiar JSON
+              </button>
+              <button id="btnCopyCurlCmd" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">
+                Copiar cURL
+              </button>
+            </div>
+          </div>
+          <pre id="jsonPayloadPreview" class="code-preview-box">// Cargando payload...</pre>
+        </div>
+
+        <!-- MCP Setup Box -->
+        <div class="metadata-box" style="margin-top: 16px;">
+          <label class="form-label" style="margin: 0;">Configuración de Servidor MCP (Claude Desktop / Cursor)</label>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">
+            El servidor expone SSE en <code style="color: var(--accent-cyan);">http://localhost:3123/mcp/sse</code> con herramientas <code>create-short-video</code> y <code>get-video-status</code>.
+          </p>
+          <div class="terminal-box">{
+  "mcpServers": {
+    "free-video-maker": {
+      "url": "http://localhost:3123/mcp/sse"
+    }
+  }
+}</div>
+        </div>
       </div>
     </section>
 
-    <!-- Right Column: 9:16 Preview Simulator & Timeline Controls -->
+    <!-- Right Column: Preview Simulator & Timeline Controls -->
     <section class="preview-column">
-      <!-- Smartphone 9:16 Simulator Frame -->
-      <div class="phone-mockup">
+      <!-- Smartphone Simulator Frame -->
+      <div class="phone-mockup" id="phoneMockupContainer">
         <!-- Notch / Dynamic Island -->
         <div class="phone-notch">
           <div class="notch-camera"></div>
         </div>
 
-        <!-- Canvas Container -->
+        <!-- Canvas & Video Container -->
         <div class="phone-screen" id="phoneScreen">
           <canvas id="shortsCanvas"></canvas>
+          <video id="serverVideoPlayer" controls playsinline style="display: none; width: 100%; height: 100%; object-fit: contain; background: #000; position: absolute; inset: 0; z-index: 5;"></video>
 
           <!-- Floating Play Overlay -->
           <div class="player-overlay" id="playerOverlay">
@@ -297,7 +399,7 @@
       </div>
 
       <!-- Timeline Card -->
-      <div class="timeline-card">
+      <div class="timeline-card" id="timelineCardContainer">
         <div class="timeline-scrubber">
           <input type="range" id="timelineSlider" min="0" max="100" value="0" step="0.1" class="timeline-slider">
           <div class="timeline-time-row">
@@ -325,11 +427,28 @@
       </div>
 
       <!-- Action Panel CTA -->
-      <div class="export-panel-cta">
+      <div class="export-panel-cta" id="exportPanelContainer">
         <button id="btnExportVideo" class="btn btn-success" style="padding: 16px; font-size: 1.05rem; justify-content: center; width: 100%;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          <span>Descargar Video Short MP4</span>
+          <span id="btnExportVideoText">Descargar Video Short MP4</span>
         </button>
+      </div>
+
+      <!-- Historial de Videos Generados -->
+      <div class="history-card" id="videosHistoryCard">
+        <div class="history-header">
+          <div class="history-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>Videos Generados</span>
+            <span id="videosCountBadge" class="history-badge">0</span>
+          </div>
+          <button id="btnRefreshVideos" class="btn-step" title="Actualizar lista de videos">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+          </button>
+        </div>
+        <div id="videosHistoryList" class="history-list">
+          <div class="history-empty">Aún no hay videos generados en esta sesión. ¡Haz clic en "Descargar Video" para crear el primero!</div>
+        </div>
       </div>
     </section>
 
@@ -408,6 +527,58 @@
       <button id="btnCancelExport" class="btn btn-secondary" style="justify-content: center; margin-top: 8px;">
         Cancelar
       </button>
+    </div>
+  </div>
+
+  <!-- MODAL: Guía Docker & MCP Server (free-video-maker) -->
+  <div id="dockerMcpModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 640px; text-align: left;">
+      <div class="modal-header">
+        <h2 class="modal-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+          <span>Despliegue Docker & Servidor MCP</span>
+        </h2>
+        <button id="btnCloseDockerModal" class="btn-close-modal">✕</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px; font-size: 0.85rem; color: var(--text-secondary); max-height: 75vh; overflow-y: auto; padding-right: 4px;">
+        <p>
+          Puedes usar <strong>ShortsCraft AI</strong> en cualquier navegador de forma gratuita con el <strong>Modo Navegador</strong>, o conectar con el contenedor oficial de <code style="color: var(--accent-cyan);">bilalnaseer/free-video-maker</code> para renderizar con <strong>Kokoro TTS + Whisper.cpp + Remotion + FFmpeg</strong> en tu CPU local o VPS:
+        </p>
+
+        <div>
+          <strong style="color: #ffffff;">1. Ejecutar el servidor con Docker (Puerto 3123):</strong>
+          <div class="terminal-box">docker run -it --rm --name short-video-maker -p 3123:3123 \
+  -e LOG_LEVEL=debug \
+  -e PEXELS_API_KEY=TU_PEXELS_API_KEY_AQUI \
+  bilalnaseer/free-video-maker:latest</div>
+        </div>
+
+        <div>
+          <strong style="color: #ffffff;">2. Conectar como Servidor MCP (Claude Desktop / Cursor / n8n):</strong>
+          <p style="font-size: 0.8rem; margin: 4px 0;">Expone Server-Sent Events en <code style="color: var(--accent-cyan);">http://localhost:3123/mcp/sse</code>:</p>
+          <div class="terminal-box">{
+  "mcpServers": {
+    "free-video-maker": {
+      "url": "http://localhost:3123/mcp/sse"
+    }
+  }
+}</div>
+        </div>
+
+        <div>
+          <strong style="color: #ffffff;">3. Endpoints REST Soportados:</strong>
+          <ul style="margin-left: 20px; margin-top: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-muted);">
+            <li><code style="color: #e2e8f0;">GET /health</code> — Verifica disponibilidad del servidor.</li>
+            <li><code style="color: #e2e8f0;">POST /api/short-video</code> — Genera video con <code style="color: var(--accent-cyan);">{ scenes, config }</code>.</li>
+            <li><code style="color: #e2e8f0;">GET /api/short-video/:id/status</code> — Consulta estado de renderizado.</li>
+            <li><code style="color: #e2e8f0;">GET /api/short-video/:id</code> — Descarga el MP4 renderizado.</li>
+            <li><code style="color: #e2e8f0;">GET /api/short-videos</code> — Lista todos los videos del servidor.</li>
+            <li><code style="color: #e2e8f0;">DELETE /api/short-video/:id</code> — Elimina un video del servidor.</li>
+            <li><code style="color: #e2e8f0;">GET /api/voices</code> y <code style="color: #e2e8f0;">GET /api/music-tags</code> — Sincroniza voces y música.</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -1,7 +1,8 @@
 /**
  * ShortsCraft AI - Main Application Controller
  * Coordinates UI events, Dark2C Human-in-the-Loop scene editor,
- * AI generation, timeline simulator, and in-browser video exporting.
+ * AI generation, timeline simulator, in-browser video exporting,
+ * and Docker/MCP REST server integration (bilalnaseer/free-video-maker).
  */
 
 import { StorageManager } from './storage.js';
@@ -12,6 +13,7 @@ import { CaptionAnimator } from './caption-animator.js';
 import { AudioMixer } from './audio-mixer.js';
 import { Compositor } from './compositor.js';
 import { VideoExporter } from './recorder.js';
+import { ServerClient } from './server-client.js';
 
 class AppController {
   constructor() {
@@ -20,6 +22,14 @@ class AppController {
     this.selectedStyleKey = 'hormozi';
     this.settings = StorageManager.getSettings();
     this.apiKeys = StorageManager.getApiKeys();
+
+    // Hybrid Engine & Orientation State
+    this.engineMode = 'browser'; // 'browser' | 'server'
+    this.orientation = 'portrait'; // 'portrait' | 'landscape'
+    this.paddingBackMs = 1500;
+    this.captionPosition = 'bottom';
+    this.serverAbortController = null;
+    this.generatedVideos = [];
   }
 
   async init() {
@@ -30,6 +40,8 @@ class AppController {
     Compositor.fontSize = this.settings.fontSize || 58;
     Compositor.bgType = this.settings.bgMotion || 'cyber-grid';
     Compositor.showProgressBar = this.settings.showProgressBar ?? true;
+    Compositor.paddingBackSec = this.paddingBackMs / 1000;
+    Compositor.setOrientation(this.orientation);
 
     // 2. Load Speech Voices
     await this.initVoices();
@@ -40,12 +52,35 @@ class AppController {
     this.bindEvents();
     this.bindCompositorListeners();
 
-    // 4. Load initial starter project so preview is immediately alive
+    // 4. Load saved videos history
+    this.loadVideosHistory();
+
+    // 5. Load initial starter project so preview is immediately alive
     this.loadInitialProject();
+
+    // 6. Check Docker server /health in background
+    this.checkInitialServerHealth();
+  }
+
+  async checkInitialServerHealth() {
+    const health = await ServerClient.checkHealth();
+    const badge = document.getElementById('serverStatusBadge');
+    if (health.ok) {
+      if (badge) {
+        badge.textContent = '● Docker Online (:3123)';
+        badge.className = 'brand-badge badge-server-online';
+      }
+    } else {
+      if (badge) {
+        badge.textContent = '● Servidor Offline (Usa Docker)';
+        badge.className = 'brand-badge badge-server-offline';
+      }
+    }
   }
 
   async initVoices() {
     const voiceSelect = document.getElementById('voiceSelect');
+    if (!voiceSelect) return;
     const voices = await TTSEngine.loadVoices();
     voiceSelect.innerHTML = '';
 
@@ -70,7 +105,7 @@ class AppController {
   }
 
   loadInitialProject() {
-    const starter = VIRAL_TEMPLATES.curiosities.generator('el Cerebro Humano');
+    const starter = VIRAL_TEMPLATES.curiosities.generator('el Espacio y la Mente');
     this.setProject(starter);
   }
 
@@ -85,6 +120,7 @@ class AppController {
     this.renderSceneCards();
     this.updateMetadataTab();
     this.updateTimeDisplay(0, Compositor.totalDurationSec);
+    this.updatePayloadPreview();
 
     // Sync background dropdown and music mood
     if (project.musicMood) {
@@ -103,7 +139,7 @@ class AppController {
       card.className = `template-card ${key === this.selectedTemplateKey ? 'active' : ''}`;
       card.innerHTML = `
         <div class="template-title">${tpl.name}</div>
-        <div class="template-desc">Fórmula de alta retención para Shorts y TikTok.</div>
+        <div class="template-desc">Fórmula de alta retención para Shorts, TikTok y Reels.</div>
       `;
       card.addEventListener('click', () => {
         document.querySelectorAll('.template-card').forEach((c) => c.classList.remove('active'));
@@ -136,6 +172,7 @@ class AppController {
         this.settings.captionStyle = key;
         StorageManager.saveSettings(this.settings);
         Compositor.requestRender();
+        this.updatePayloadPreview();
       });
       container.appendChild(card);
     });
@@ -143,17 +180,23 @@ class AppController {
 
   /**
    * Dark2C Human-in-the-Loop Scene Editor
-   * Allows live script tweaking, duration adjustments, and per-scene video swapping
+   * Allows live script tweaking, duration adjustments, scene reordering, and per-scene video swapping
    */
   renderSceneCards() {
     const container = document.getElementById('scenesContainer');
     if (!container || !this.currentProject) return;
     container.innerHTML = '';
 
+    const totalScenes = this.currentProject.scenes.length;
+
     this.currentProject.scenes.forEach((scene, idx) => {
       const card = document.createElement('div');
       card.className = `scene-card ${idx === Compositor.currentSceneIndex ? 'active-scene' : ''}`;
       card.dataset.sceneIndex = idx;
+
+      const termsList = scene.searchTerms && scene.searchTerms.length
+        ? scene.searchTerms.join(', ')
+        : (scene.keyword || 'cosmos, galaxy');
 
       card.innerHTML = `
         <div class="scene-header">
@@ -166,6 +209,8 @@ class AppController {
             </div>
           </div>
           <div class="scene-actions">
+            ${idx > 0 ? `<button class="btn-move-scene btn-move-up" title="Mover escena arriba"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg></button>` : ''}
+            ${idx < totalScenes - 1 ? `<button class="btn-move-scene btn-move-down" title="Mover escena abajo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>` : ''}
             <button class="btn-step btn-preview-scene" title="Previsualizar esta escena">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             </button>
@@ -175,12 +220,19 @@ class AppController {
           </div>
         </div>
 
-        <textarea class="scene-textarea">${scene.text}</textarea>
+        <textarea class="scene-textarea" rows="2" placeholder="Escribe la narración para esta escena...">${scene.text}</textarea>
+
+        <div class="scene-terms-row">
+          <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted);">Pexels:</span>
+          <input type="text" class="scene-terms-input" value="${termsList}" placeholder="ej. space, planet, stars">
+          <button class="btn-step btn-fetch-scene-broll" title="Buscar clip Pexels para esta escena">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </button>
+        </div>
 
         <div class="scene-footer">
-          <div class="keyword-tag">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <span>${scene.keyword || 'clip vertical'}</span>
+          <div class="scene-media-status">
+            ${MediaService.getCustomMedia(scene.id) ? '<span style="color: #10b981; font-size: 0.75rem; font-weight: 700;">✓ Clip Activo</span>' : '<span style="color: var(--text-muted); font-size: 0.75rem;">Fondo Procedural HD</span>'}
           </div>
 
           <div class="scene-media-controls">
@@ -199,7 +251,50 @@ class AppController {
         scene.text = e.target.value;
         scene.words = TTSEngine.calculateWordTimestamps(scene.text, scene.durationSec);
         Compositor.requestRender();
+        this.updatePayloadPreview();
       });
+
+      // Search terms editing
+      const termsInput = card.querySelector('.scene-terms-input');
+      termsInput.addEventListener('input', (e) => {
+        const raw = e.target.value;
+        const splitted = raw.split(',').map((t) => t.trim()).filter(Boolean);
+        scene.searchTerms = splitted.length ? splitted : ['nature'];
+        scene.keyword = splitted.join(' ');
+        this.updatePayloadPreview();
+      });
+
+      // Fetch Pexels B-Roll for single scene
+      const btnFetchSingle = card.querySelector('.btn-fetch-scene-broll');
+      btnFetchSingle.addEventListener('click', async () => {
+        if (!this.apiKeys.pexels) {
+          document.getElementById('btnSettings').click();
+          alert('Por favor introduce tu Pexels API Key gratuita en Configuración para buscar videos en vivo.');
+          return;
+        }
+        btnFetchSingle.innerHTML = '<span style="font-size: 0.7rem;">...</span>';
+        const media = await MediaService.fetchPexelsVideoForTerms(scene.searchTerms, this.orientation, this.apiKeys.pexels);
+        btnFetchSingle.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+        if (media) {
+          MediaService.setMediaForScene(scene.id, media);
+          this.renderSceneCards();
+          Compositor.seek(Compositor.currentTimeSec);
+        } else {
+          alert('No se encontraron clips para los términos especificados.');
+        }
+      });
+
+      // Move scene UP
+      const btnUp = card.querySelector('.btn-move-up');
+      if (btnUp) {
+        btnUp.addEventListener('click', () => this.moveScene(idx, -1));
+      }
+
+      // Move scene DOWN
+      const btnDown = card.querySelector('.btn-move-down');
+      if (btnDown) {
+        btnDown.addEventListener('click', () => this.moveScene(idx, 1));
+      }
 
       // Duration editing
       const durationField = card.querySelector('.scene-duration-field');
@@ -210,6 +305,7 @@ class AppController {
         Compositor.loadProject(this.currentProject);
         this.updateTimeDisplay(Compositor.currentTimeSec, Compositor.totalDurationSec);
         Compositor.requestRender();
+        this.updatePayloadPreview();
       });
 
       // Preview single scene
@@ -224,12 +320,13 @@ class AppController {
       const btnDelete = card.querySelector('.btn-delete-scene');
       btnDelete.addEventListener('click', () => {
         if (this.currentProject.scenes.length <= 1) {
-          alert('El short debe tener al menos una escena.');
+          alert('El video debe tener al menos una escena.');
           return;
         }
         this.currentProject.scenes.splice(idx, 1);
         Compositor.loadProject(this.currentProject);
         this.renderSceneCards();
+        this.updatePayloadPreview();
       });
 
       // Upload custom clip for this scene
@@ -238,14 +335,26 @@ class AppController {
         const file = e.target.files?.[0];
         if (file) {
           MediaService.setCustomMediaForScene(scene.id, file);
-          const badge = card.querySelector('.scene-media-controls');
-          badge.innerHTML = `<span style="color: #10b981; font-size: 0.75rem; font-weight: 700;">✓ Clip Cargado</span>`;
-          Compositor.seek(Compositor.currentTimeSec); // Force redraw
+          this.renderSceneCards();
+          Compositor.seek(Compositor.currentTimeSec);
         }
       });
 
       container.appendChild(card);
     });
+  }
+
+  moveScene(idx, direction) {
+    const target = idx + direction;
+    if (!this.currentProject || target < 0 || target >= this.currentProject.scenes.length) return;
+
+    const temp = this.currentProject.scenes[idx];
+    this.currentProject.scenes[idx] = this.currentProject.scenes[target];
+    this.currentProject.scenes[target] = temp;
+
+    Compositor.loadProject(this.currentProject);
+    this.renderSceneCards();
+    this.updatePayloadPreview();
   }
 
   updateMetadataTab() {
@@ -269,9 +378,27 @@ class AppController {
     if (descTextarea) descTextarea.value = this.currentProject.description || '';
   }
 
+  updatePayloadPreview() {
+    if (!this.currentProject) return;
+    const payloadElem = document.getElementById('jsonPayloadPreview');
+    if (!payloadElem) return;
+
+    const payload = ServerClient.buildPayload({
+      project: this.currentProject,
+      orientation: this.orientation,
+      paddingBack: this.paddingBackMs,
+      captionPos: this.captionPosition,
+      captionColor: this.settings.highlightColor || 'blue',
+      voice: 'af_heart',
+      music: this.currentProject.musicMood || 'chill',
+      musicVolume: 'medium',
+    });
+
+    payloadElem.textContent = JSON.stringify(payload, null, 2);
+  }
+
   bindCompositorListeners() {
     const playPauseBtn = document.getElementById('btnPlayPause');
-    const playIconSvg = document.getElementById('playIconSvg');
     const timelineSlider = document.getElementById('timelineSlider');
     const phoneScreen = document.getElementById('phoneScreen');
 
@@ -297,7 +424,8 @@ class AppController {
     };
 
     // Phone screen click to toggle play
-    phoneScreen.addEventListener('click', () => {
+    phoneScreen.addEventListener('click', (e) => {
+      if (e.target.tagName === 'VIDEO') return;
       this.togglePlayPause();
     });
 
@@ -327,6 +455,12 @@ class AppController {
       Compositor.pause();
       this.updatePlayPauseButton(false);
     } else {
+      // Hide server video player if visible
+      const serverPlayer = document.getElementById('serverVideoPlayer');
+      if (serverPlayer && !serverPlayer.classList.contains('hidden-player')) {
+        serverPlayer.style.display = 'none';
+        document.getElementById('shortsCanvas').style.display = 'block';
+      }
       Compositor.play();
       this.updatePlayPauseButton(true);
     }
@@ -361,6 +495,281 @@ class AppController {
     if (totElem) totElem.textContent = fmt(totalSec);
   }
 
+  // --- ENGINE MODES & ORIENTATION ---
+  setEngineMode(mode) {
+    this.engineMode = mode;
+    const bBtn = document.getElementById('btnModeBrowser');
+    const sBtn = document.getElementById('btnModeServer');
+    const badge = document.getElementById('connectionBadge');
+    const serverBadge = document.getElementById('serverStatusBadge');
+    const exportBtnText = document.getElementById('btnExportVideoText');
+
+    if (mode === 'browser') {
+      bBtn.classList.add('active');
+      sBtn.classList.remove('active');
+      badge.textContent = '● Web Engine Activo';
+      badge.className = 'brand-badge badge-browser';
+      if (exportBtnText) exportBtnText.textContent = 'Descargar Video Short MP4 (Navegador)';
+
+      // Restore canvas display
+      document.getElementById('serverVideoPlayer').style.display = 'none';
+      document.getElementById('shortsCanvas').style.display = 'block';
+    } else {
+      sBtn.classList.add('active');
+      bBtn.classList.remove('active');
+      badge.textContent = '● Modo Docker / REST API';
+      badge.className = 'brand-badge badge-server-online';
+      if (exportBtnText) exportBtnText.textContent = 'Renderizar y Descargar con Docker (:3123)';
+
+      // Trigger server check
+      this.checkServerHealthUI();
+    }
+    this.updatePayloadPreview();
+  }
+
+  async checkServerHealthUI() {
+    const url = (document.getElementById('serverUrlInput')?.value || ServerClient.defaultUrl).trim();
+    ServerClient.setBaseUrl(url);
+
+    const badge = document.getElementById('serverStatusBadge');
+    if (badge) badge.textContent = 'Verificando...';
+
+    const health = await ServerClient.checkHealth(url);
+    if (health.ok) {
+      if (badge) {
+        badge.textContent = '● Docker Online (:3123)';
+        badge.className = 'brand-badge badge-server-online';
+      }
+      return true;
+    } else {
+      if (badge) {
+        badge.textContent = '● Servidor Desconectado';
+        badge.className = 'brand-badge badge-server-offline';
+      }
+      return false;
+    }
+  }
+
+  toggleOrientation() {
+    this.orientation = this.orientation === 'portrait' ? 'landscape' : 'portrait';
+    const isLand = this.orientation === 'landscape';
+
+    // Update Compositor resolution
+    Compositor.setOrientation(this.orientation);
+
+    // Update DOM simulator classes
+    const mockup = document.getElementById('phoneMockupContainer');
+    const timeline = document.getElementById('timelineCardContainer');
+    const exportPanel = document.getElementById('exportPanelContainer');
+    const historyCard = document.getElementById('videosHistoryCard');
+
+    if (mockup) mockup.classList.toggle('landscape', isLand);
+    if (timeline) timeline.classList.toggle('landscape', isLand);
+    if (exportPanel) exportPanel.classList.toggle('landscape', isLand);
+    if (historyCard) historyCard.classList.toggle('landscape', isLand);
+
+    // Update Button Labels
+    const icon = document.getElementById('orientationIcon');
+    const text = document.getElementById('orientationText');
+    if (icon) icon.textContent = isLand ? '🖥️' : '📱';
+    if (text) text.textContent = isLand ? '16:9' : '9:16';
+
+    this.updatePayloadPreview();
+  }
+
+  // --- AUTOMATED PEXELS B-ROLL ---
+  async autoFetchPexelsBroll() {
+    if (!this.apiKeys.pexels) {
+      document.getElementById('btnSettings').click();
+      alert('Por favor introduce tu Pexels API Key gratuita en Configuración para descargar clips B-Roll automáticos.');
+      return;
+    }
+
+    const btn = document.getElementById('btnAutoFetchBroll');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>Descargando B-Roll...</span>';
+
+    try {
+      await MediaService.autoFetchBrollForProject(
+        this.currentProject,
+        this.orientation,
+        this.apiKeys.pexels,
+        ({ current, total }) => {
+          btn.innerHTML = `<span>B-Roll ${current}/${total}...</span>`;
+        }
+      );
+      this.renderSceneCards();
+      Compositor.seek(Compositor.currentTimeSec);
+      alert('¡Clips de B-Roll de Pexels descargados y aplicados a todas las escenas con éxito!');
+    } catch (err) {
+      alert(`Error al buscar videos en Pexels: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
+
+  // --- GENERATED VIDEOS HISTORY ---
+  loadVideosHistory() {
+    try {
+      const raw = localStorage.getItem('shortscraft_videos_history');
+      this.generatedVideos = raw ? JSON.parse(raw) : [];
+      this.renderVideosHistory();
+    } catch (e) {
+      this.generatedVideos = [];
+    }
+  }
+
+  saveVideosHistory() {
+    try {
+      localStorage.setItem('shortscraft_videos_history', JSON.stringify(this.generatedVideos.slice(0, 15)));
+    } catch (e) {}
+  }
+
+  addGeneratedVideo(item) {
+    this.generatedVideos.unshift(item);
+    this.saveVideosHistory();
+    this.renderVideosHistory();
+  }
+
+  deleteGeneratedVideo(id, mode) {
+    if (mode === 'server') {
+      ServerClient.deleteVideo(id);
+    }
+    this.generatedVideos = this.generatedVideos.filter((v) => v.id !== id);
+    this.saveVideosHistory();
+    this.renderVideosHistory();
+  }
+
+  renderVideosHistory() {
+    const list = document.getElementById('videosHistoryList');
+    const badge = document.getElementById('videosCountBadge');
+    if (!list) return;
+
+    if (badge) badge.textContent = this.generatedVideos.length;
+
+    if (this.generatedVideos.length === 0) {
+      list.innerHTML = `<div class="history-empty">Aún no hay videos generados en esta sesión. ¡Haz clic en "Descargar Video" para crear el primero!</div>`;
+      return;
+    }
+
+    list.innerHTML = this.generatedVideos.map((v) => `
+      <div class="history-item">
+        <div class="history-info">
+          <div class="history-name">${v.title || v.id}</div>
+          <div class="history-meta">
+            <span class="history-format-tag">${v.format || 'MP4'}</span>
+            <span>${v.mode === 'browser' ? '⚡ Navegador' : '🐳 Docker'}</span>
+            <span>• ${v.orientation || '9:16'}</span>
+            <span>• ${v.createdAt}</span>
+          </div>
+        </div>
+        <div class="history-actions">
+          <a href="${v.url}" download="${v.filename || `video_${v.id}.mp4`}" class="btn-history-dl" target="_blank" title="Descargar archivo">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Bajar</span>
+          </a>
+          <button class="btn-history-del" onclick="window.shortscraftApp.deleteGeneratedVideo('${v.id}', '${v.mode}')" title="Eliminar">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // --- DOCKER SERVER EXPORT PIPELINE ---
+  async exportVideoViaServer() {
+    const exportModal = document.getElementById('exportModal');
+    const fillBar = document.getElementById('exportProgressFill');
+    const percentDisplay = document.getElementById('exportProgressPercent');
+    const timeDisplay = document.getElementById('exportProgressTime');
+    const successBox = document.getElementById('exportSuccessBox');
+    const btnDownloadAgain = document.getElementById('btnDownloadAgain');
+
+    exportModal.classList.add('open');
+    successBox.style.display = 'none';
+    fillBar.style.width = '10%';
+    percentDisplay.textContent = '10%';
+    timeDisplay.textContent = 'Enviando a POST /api/short-video...';
+
+    const payload = ServerClient.buildPayload({
+      project: this.currentProject,
+      orientation: this.orientation,
+      paddingBack: this.paddingBackMs,
+      captionPos: this.captionPosition,
+      captionColor: this.settings.highlightColor || 'blue',
+      voice: 'af_heart',
+      music: this.currentProject.musicMood || 'chill',
+      musicVolume: 'medium',
+    });
+
+    try {
+      this.serverAbortController = new AbortController();
+      const videoId = await ServerClient.submitVideo(payload);
+
+      fillBar.style.width = '25%';
+      percentDisplay.textContent = '25%';
+      timeDisplay.textContent = `Procesando con Remotion + Whisper (${videoId})...`;
+
+      const result = await ServerClient.pollVideoStatus(videoId, {
+        onProgress: ({ percent, status }) => {
+          fillBar.style.width = `${percent}%`;
+          percentDisplay.textContent = `${percent}%`;
+          timeDisplay.textContent = `Servidor: ${status}...`;
+        },
+        abortSignal: this.serverAbortController.signal,
+      });
+
+      fillBar.style.width = '100%';
+      percentDisplay.textContent = '100%';
+      timeDisplay.textContent = '¡Renderizado completado en el servidor!';
+
+      // Download file
+      const filename = `${(this.currentProject.title || 'ShortsCraft_Server')
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .slice(0, 30)}_${videoId}.mp4`;
+
+      const a = document.createElement('a');
+      a.href = result.videoUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Play video in player simulator
+      const serverPlayer = document.getElementById('serverVideoPlayer');
+      if (serverPlayer) {
+        document.getElementById('shortsCanvas').style.display = 'none';
+        serverPlayer.style.display = 'block';
+        serverPlayer.src = result.videoUrl;
+        serverPlayer.play().catch(() => {});
+      }
+
+      // Add to session history
+      this.addGeneratedVideo({
+        id: videoId,
+        title: this.currentProject.title || 'Video Docker Remotion',
+        format: 'MP4',
+        mode: 'server',
+        url: result.videoUrl,
+        filename,
+        orientation: this.orientation === 'landscape' ? '16:9' : '9:16',
+        createdAt: new Date().toLocaleTimeString(),
+      });
+
+      // Show success modal
+      successBox.style.display = 'flex';
+      btnDownloadAgain.href = result.videoUrl;
+      btnDownloadAgain.download = filename;
+    } catch (err) {
+      alert(`Error en el servidor Docker: ${err.message}. Asegúrate de que el contenedor bilalnaseer/free-video-maker esté corriendo en el puerto 3123.`);
+      exportModal.classList.remove('open');
+    } finally {
+      this.serverAbortController = null;
+    }
+  }
+
   bindEvents() {
     // 1. Navigation Tabs
     document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -375,9 +784,112 @@ class AppController {
       });
     });
 
-    // 2. Generate with AI Button
+    // 2. Engine Mode Toggle
+    document.getElementById('btnModeBrowser')?.addEventListener('click', () => this.setEngineMode('browser'));
+    document.getElementById('btnModeServer')?.addEventListener('click', () => this.setEngineMode('server'));
+
+    // 3. Orientation Toggle
+    document.getElementById('btnToggleOrientation')?.addEventListener('click', () => this.toggleOrientation());
+
+    // 4. Docker Guide Modal
+    const dockerModal = document.getElementById('dockerMcpModal');
+    document.getElementById('btnOpenDockerModal')?.addEventListener('click', () => dockerModal.classList.add('open'));
+    document.getElementById('btnCloseDockerModal')?.addEventListener('click', () => dockerModal.classList.remove('open'));
+    dockerModal?.addEventListener('click', (e) => {
+      if (e.target === dockerModal) dockerModal.classList.remove('open');
+    });
+
+    // 5. API Tab controls: Health check & Catalog sync
+    document.getElementById('btnCheckHealth')?.addEventListener('click', async () => {
+      const ok = await this.checkServerHealthUI();
+      alert(ok ? '¡Conexión exitosa con el servidor Docker (/health OK)!' : 'No se pudo conectar a localhost:3123. Revisa si Docker está encendido.');
+    });
+
+    document.getElementById('btnSyncServerCatalogs')?.addEventListener('click', async () => {
+      const catalogs = await ServerClient.syncCatalogs();
+      if (catalogs.voices.length) {
+        alert(`¡Catálogo sincronizado! ${catalogs.voices.length} voces Kokoro y ${catalogs.musicTags.length} géneros de música.`);
+      } else {
+        alert('No se pudieron obtener catálogos. Verifica si el servidor está en ejecución.');
+      }
+    });
+
+    // 6. Copy Payload & cURL Buttons
+    document.getElementById('btnCopyPayloadJson')?.addEventListener('click', (e) => {
+      const text = document.getElementById('jsonPayloadPreview').textContent;
+      navigator.clipboard.writeText(text);
+      const btn = e.target;
+      btn.textContent = '¡Copiado!';
+      setTimeout(() => (btn.textContent = 'Copiar JSON'), 1500);
+    });
+
+    document.getElementById('btnCopyCurlCmd')?.addEventListener('click', (e) => {
+      const payload = ServerClient.buildPayload({
+        project: this.currentProject,
+        orientation: this.orientation,
+        paddingBack: this.paddingBackMs,
+        captionPos: this.captionPosition,
+        captionColor: this.settings.highlightColor || 'blue',
+      });
+      const cmd = ServerClient.generateCurlCommand(ServerClient.getBaseUrl(), payload);
+      navigator.clipboard.writeText(cmd);
+      const btn = e.target;
+      btn.textContent = '¡Copiado!';
+      setTimeout(() => (btn.textContent = 'Copiar cURL'), 1500);
+    });
+
+    // 7. Auto Fetch B-Roll from Pexels button
+    document.getElementById('btnAutoFetchBroll')?.addEventListener('click', () => this.autoFetchPexelsBroll());
+
+    // 8. Refresh videos history
+    document.getElementById('btnRefreshVideos')?.addEventListener('click', async () => {
+      if (this.engineMode === 'server') {
+        const srvVideos = await ServerClient.getVideos();
+        if (srvVideos.length) {
+          srvVideos.forEach((sv) => {
+            if (!this.generatedVideos.some((v) => v.id === sv.id)) {
+              this.generatedVideos.push({
+                id: sv.id,
+                title: `Video Docker ${sv.id}`,
+                format: 'MP4',
+                mode: 'server',
+                url: `${ServerClient.getBaseUrl()}/api/short-video/${sv.id}`,
+                orientation: '9:16',
+                createdAt: 'Servidor Docker',
+              });
+            }
+          });
+          this.saveVideosHistory();
+        }
+      }
+      this.renderVideosHistory();
+    });
+
+    // 9. Padding Back & Caption Position controls
+    const paddingRange = document.getElementById('paddingBackRange');
+    const paddingDisplay = document.getElementById('paddingBackDisplay');
+    paddingRange?.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value);
+      this.paddingBackMs = val;
+      Compositor.paddingBackSec = val / 1000;
+      if (paddingDisplay) paddingDisplay.textContent = `${val} ms`;
+      if (this.currentProject) Compositor.loadProject(this.currentProject);
+      this.updatePayloadPreview();
+    });
+
+    const captionPosSelect = document.getElementById('captionPosSelect');
+    captionPosSelect?.addEventListener('change', (e) => {
+      this.captionPosition = e.target.value;
+      if (e.target.value === 'bottom') Compositor.captionYPercent = 70;
+      if (e.target.value === 'center') Compositor.captionYPercent = 50;
+      if (e.target.value === 'top') Compositor.captionYPercent = 25;
+      Compositor.requestRender();
+      this.updatePayloadPreview();
+    });
+
+    // 10. Generate with AI Button
     const btnGenerate = document.getElementById('btnGenerateScript');
-    btnGenerate.addEventListener('click', async () => {
+    btnGenerate?.addEventListener('click', async () => {
       const topic = document.getElementById('topicInput').value.trim();
       const provider = document.getElementById('aiProviderSelect').value;
       const language = document.getElementById('languageSelect').value;
@@ -418,26 +930,28 @@ class AppController {
       }
     });
 
-    // 3. Add Scene Button
+    // 11. Add Scene Button
     const btnAddScene = document.getElementById('btnAddScene');
-    btnAddScene.addEventListener('click', () => {
+    btnAddScene?.addEventListener('click', () => {
       if (!this.currentProject) return;
       const newId = this.currentProject.scenes.length + 1;
       this.currentProject.scenes.push({
         id: newId,
         text: 'Nueva escena editable. Añade tu texto aquí.',
-        keyword: 'cinematic vertical video',
+        keyword: 'nature ocean',
+        searchTerms: ['nature', 'ocean'],
         durationSec: 4.0,
         words: TTSEngine.calculateWordTimestamps('Nueva escena editable. Añade tu texto aquí.', 4.0),
       });
       Compositor.loadProject(this.currentProject);
       this.renderSceneCards();
+      this.updatePayloadPreview();
     });
 
-    // 4. Style Controls: Font Size, Y Pos, Background
+    // 12. Style Controls: Font Size, Background
     const fontSizeRange = document.getElementById('fontSizeRange');
     const fontSizeDisplay = document.getElementById('fontSizeDisplay');
-    fontSizeRange.addEventListener('input', (e) => {
+    fontSizeRange?.addEventListener('input', (e) => {
       const val = parseInt(e.target.value);
       Compositor.fontSize = val;
       fontSizeDisplay.textContent = `${val}px`;
@@ -446,17 +960,8 @@ class AppController {
       Compositor.requestRender();
     });
 
-    const yPosRange = document.getElementById('yPosRange');
-    const yPosDisplay = document.getElementById('yPosDisplay');
-    yPosRange.addEventListener('input', (e) => {
-      const val = parseInt(e.target.value);
-      Compositor.captionYPercent = val;
-      yPosDisplay.textContent = `${val}%`;
-      Compositor.requestRender();
-    });
-
     const bgTypeSelect = document.getElementById('bgTypeSelect');
-    bgTypeSelect.addEventListener('change', (e) => {
+    bgTypeSelect?.addEventListener('change', (e) => {
       Compositor.bgType = e.target.value;
       this.settings.bgMotion = e.target.value;
       StorageManager.saveSettings(this.settings);
@@ -464,21 +969,22 @@ class AppController {
     });
 
     const checkProgressBar = document.getElementById('checkProgressBar');
-    checkProgressBar.addEventListener('change', (e) => {
+    checkProgressBar?.addEventListener('change', (e) => {
       Compositor.showProgressBar = e.target.checked;
       Compositor.requestRender();
     });
 
-    // 5. Audio Controls: Voice, Rate, Volume, Music Mood, Custom Music
+    // 13. Audio Controls: Voice, Rate, Volume, Music Mood, Custom Music
     const voiceSelect = document.getElementById('voiceSelect');
-    voiceSelect.addEventListener('change', (e) => {
+    voiceSelect?.addEventListener('change', (e) => {
       this.settings.defaultVoice = e.target.value;
       StorageManager.saveSettings(this.settings);
+      this.updatePayloadPreview();
     });
 
     const speechRateRange = document.getElementById('speechRateRange');
     const speechRateDisplay = document.getElementById('speechRateDisplay');
-    speechRateRange.addEventListener('input', (e) => {
+    speechRateRange?.addEventListener('input', (e) => {
       const val = parseFloat(e.target.value);
       speechRateDisplay.textContent = `${val.toFixed(2)}x`;
       this.settings.speechRate = val;
@@ -487,7 +993,7 @@ class AppController {
 
     const musicVolRange = document.getElementById('musicVolRange');
     const musicVolDisplay = document.getElementById('musicVolDisplay');
-    musicVolRange.addEventListener('input', (e) => {
+    musicVolRange?.addEventListener('input', (e) => {
       const val = parseFloat(e.target.value);
       AudioMixer.setMusicVolume(val);
       musicVolDisplay.textContent = `${Math.round(val * 100)}%`;
@@ -496,38 +1002,39 @@ class AppController {
     });
 
     const musicMoodSelect = document.getElementById('musicMoodSelect');
-    musicMoodSelect.addEventListener('change', (e) => {
+    musicMoodSelect?.addEventListener('change', (e) => {
       if (this.currentProject) {
         this.currentProject.musicMood = e.target.value;
       }
       if (Compositor.isPlaying) {
         AudioMixer.startMusic(e.target.value);
       }
+      this.updatePayloadPreview();
     });
 
     const customMusicInput = document.getElementById('customMusicInput');
-    customMusicInput.addEventListener('change', (e) => {
+    customMusicInput?.addEventListener('change', (e) => {
       const file = e.target.files?.[0];
       if (file) {
         AudioMixer.loadCustomMusic(file);
       }
     });
 
-    // 6. Rewind and Forward Step buttons
-    document.getElementById('btnRewind').addEventListener('click', () => {
+    // 14. Rewind and Forward Step buttons
+    document.getElementById('btnRewind')?.addEventListener('click', () => {
       Compositor.seek(Compositor.currentTimeSec - 3);
     });
-    document.getElementById('btnForward').addEventListener('click', () => {
+    document.getElementById('btnForward')?.addEventListener('click', () => {
       Compositor.seek(Compositor.currentTimeSec + 3);
     });
 
-    // 7. Copy metadata buttons
+    // 15. Copy metadata buttons
     this.bindCopyButtons();
 
-    // 8. Settings Modal
+    // 16. Settings Modal
     this.bindSettingsModal();
 
-    // 9. Video Export
+    // 17. Video Export Buttons
     this.bindExportModal();
   }
 
@@ -543,17 +1050,17 @@ class AppController {
       }, 1500);
     };
 
-    document.getElementById('btnCopyTitle').addEventListener('click', (e) => {
+    document.getElementById('btnCopyTitle')?.addEventListener('click', (e) => {
       const title = document.getElementById('metaTitleInput').value;
       copy(title, e.target);
     });
 
-    document.getElementById('btnCopyHashtags').addEventListener('click', (e) => {
+    document.getElementById('btnCopyHashtags')?.addEventListener('click', (e) => {
       const tags = (this.currentProject?.hashtags || []).join(' ');
       copy(tags, e.target);
     });
 
-    document.getElementById('btnCopyDesc').addEventListener('click', (e) => {
+    document.getElementById('btnCopyDesc')?.addEventListener('click', (e) => {
       const desc = document.getElementById('metaDescTextarea').value;
       copy(desc, e.target);
     });
@@ -570,7 +1077,7 @@ class AppController {
     const inpGroq = document.getElementById('apiKeyGroq');
     const inpPexels = document.getElementById('apiKeyPexels');
 
-    openBtn.addEventListener('click', () => {
+    openBtn?.addEventListener('click', () => {
       inpGemini.value = this.apiKeys.gemini || '';
       inpOpenAI.value = this.apiKeys.openai || '';
       inpGroq.value = this.apiKeys.groq || '';
@@ -579,12 +1086,12 @@ class AppController {
     });
 
     const closeModal = () => modal.classList.remove('open');
-    closeBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
+    closeBtn?.addEventListener('click', closeModal);
+    modal?.addEventListener('click', (e) => {
       if (e.target === modal) closeModal();
     });
 
-    saveBtn.addEventListener('click', () => {
+    saveBtn?.addEventListener('click', () => {
       this.apiKeys = {
         gemini: inpGemini.value.trim(),
         openai: inpOpenAI.value.trim(),
@@ -593,7 +1100,7 @@ class AppController {
       };
       StorageManager.saveApiKeys(this.apiKeys);
       closeModal();
-      alert('Configuración y API Keys guardadas localmente en tu navegador.');
+      alert('Configuración y API Keys guardadas en tu navegador.');
     });
   }
 
@@ -609,6 +1116,12 @@ class AppController {
     const btnDownloadAgain = document.getElementById('btnDownloadAgain');
 
     const startExport = () => {
+      if (this.engineMode === 'server') {
+        this.exportVideoViaServer();
+        return;
+      }
+
+      // Browser Export Pipeline
       exportModal.classList.add('open');
       successBox.style.display = 'none';
       fillBar.style.width = '0%';
@@ -620,7 +1133,7 @@ class AppController {
           percentDisplay.textContent = `${percent}%`;
           timeDisplay.textContent = `${currentSec.toFixed(1)}s / ${totalSec.toFixed(1)}s`;
         },
-        onComplete: ({ downloadUrl, filename }) => {
+        onComplete: ({ downloadUrl, filename, blob }) => {
           // Automatic trigger
           const a = document.createElement('a');
           a.href = downloadUrl;
@@ -628,6 +1141,18 @@ class AppController {
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
+
+          // Add to session history
+          this.addGeneratedVideo({
+            id: 'local_' + Date.now().toString(36),
+            title: this.currentProject.title || 'Video Short Web',
+            format: filename.endsWith('.mp4') ? 'MP4' : 'WebM',
+            mode: 'browser',
+            url: downloadUrl,
+            filename,
+            orientation: this.orientation === 'landscape' ? '16:9' : '9:16',
+            createdAt: new Date().toLocaleTimeString(),
+          });
 
           // Show success state
           successBox.style.display = 'flex';
@@ -641,10 +1166,13 @@ class AppController {
       });
     };
 
-    btnExport.addEventListener('click', startExport);
-    btnHeaderExport.addEventListener('click', startExport);
+    btnExport?.addEventListener('click', startExport);
+    btnHeaderExport?.addEventListener('click', startExport);
 
-    btnCancel.addEventListener('click', () => {
+    btnCancel?.addEventListener('click', () => {
+      if (this.serverAbortController) {
+        this.serverAbortController.abort();
+      }
       VideoExporter.cancelExport();
       exportModal.classList.remove('open');
     });
@@ -654,5 +1182,6 @@ class AppController {
 // Start app when DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
   const app = new AppController();
+  window.shortscraftApp = app;
   app.init();
 });

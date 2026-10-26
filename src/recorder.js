@@ -25,12 +25,20 @@ export const VideoExporter = {
     this.isExporting = true;
     this.recordedChunks = [];
 
-    // Switch to Full HD 1080x1920 for export
-    Compositor.setResolution(1080, 1920);
+    // Switch to Full HD (1080x1920 portrait or 1920x1080 landscape) for export
+    if (Compositor.orientation === 'landscape') {
+      Compositor.setResolution(1920, 1080);
+    } else {
+      Compositor.setResolution(1080, 1920);
+    }
 
     const restorePreviewResolution = () => {
       this.isExporting = false;
-      Compositor.setResolution(540, 960);
+      if (Compositor.orientation === 'landscape') {
+        Compositor.setResolution(960, 540);
+      } else {
+        Compositor.setResolution(540, 960);
+      }
     };
 
     try {
@@ -126,7 +134,11 @@ export const VideoExporter = {
       this.mediaRecorder.stop();
     }
     this.isExporting = false;
-    Compositor.setResolution(540, 960);
+    if (Compositor.orientation === 'landscape') {
+      Compositor.setResolution(960, 540);
+    } else {
+      Compositor.setResolution(540, 960);
+    }
     Compositor.pause();
   },
 };

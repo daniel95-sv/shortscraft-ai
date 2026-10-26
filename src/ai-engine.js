@@ -9,41 +9,166 @@ export const VIRAL_TEMPLATES = {
     name: '🧠 Datos Asombrosos (Did You Know)',
     mood: 'epic',
     generator: (topic) => ({
-      title: `3 Datos Perturbadores sobre ${topic || 'el Cerebro Humano'} que nadie te cuenta`,
+      title: `3 Datos Perturbadores sobre ${topic || 'el Espacio y la Mente'} que nadie te cuenta`,
       scenes: [
         {
           id: 1,
-          text: `¿Sabías que ${topic ? `el misterio de ${topic}` : 'tu propio cerebro'} te engaña todos los días?`,
-          keyword: 'mysterious brain optical illusion',
+          text: `¿Sabías que ${topic ? `el misterio de ${topic}` : 'un solo día en Venus dura más que un año entero'}?`,
+          keyword: 'space planet cosmos',
+          searchTerms: ['space', 'planet', 'cosmos'],
           durationSec: 4.0,
         },
         {
           id: 2,
-          text: 'Número uno: El 80 por ciento de tus pensamientos diarios son repeticiones del día anterior.',
-          keyword: 'deep thinking futuristic neon mind',
+          text: 'Venus rota tan lento sobre su propio eje que le toma 243 días terrestres completar un solo giro.',
+          keyword: 'galaxy stars universe',
+          searchTerms: ['galaxy', 'stars', 'universe'],
           durationSec: 4.8,
         },
         {
           id: 3,
-          text: 'Número dos: Cuando recuerdas un evento pasado, en realidad recuerdas la última vez que lo recordaste.',
-          keyword: 'time warp clock universe stars',
+          text: 'Además, los científicos descubrieron un planeta hecho casi en su totalidad de diamante sólido.',
+          keyword: 'diamond planet nebula cosmic',
+          searchTerms: ['cosmos', 'nebula', 'planet'],
           durationSec: 5.2,
         },
         {
           id: 4,
-          text: 'Y el último te sorprenderá: Tu subconsciente toma decisiones 7 segundos antes de que te des cuenta.',
-          keyword: 'lightning neural electric network',
-          durationSec: 5.5,
+          text: 'Se llama 55 Cancri e, y tiene el doble del tamaño de nuestra Tierra.',
+          keyword: 'futuristic telescope deep space',
+          searchTerms: ['telescope', 'space', 'astronaut'],
+          durationSec: 5.0,
         },
         {
           id: 5,
-          text: 'Comenta si ya conocías esto y suscríbete para no perderte el próximo dato.',
-          keyword: 'subscribe button neon futuristic glow',
+          text: 'Suscríbete y comenta si vivirías en un planeta de diamantes.',
+          keyword: 'astronaut earth ocean globe',
+          searchTerms: ['astronaut', 'earth', 'ocean'],
           durationSec: 3.8,
         },
       ],
-      hashtags: ['#Shorts', '#DatosCuriosos', '#Psicologia', '#Misterio', '#ViralTikTok', '#AprendeEnTikTok'],
-      description: `3 datos que pondrán a prueba tu mente sobre ${topic || 'curiosidades del mundo'}. ¡Comenta cuál te impresionó más!`,
+      hashtags: ['#Shorts', '#DatosCuriosos', '#Espacio', '#Astronomia', '#ViralTikTok', '#AprendeEnTikTok'],
+      description: `Datos asombrosos del universo sobre ${topic || 'el cosmos'}. ¡Comenta cuál te impresionó más!`,
+    }),
+  },
+
+  productivity: {
+    name: '⚡ Productividad & Deep Work',
+    mood: 'upbeat',
+    generator: (topic) => ({
+      title: `Deja de Multitask si quieres lograr ${topic || 'tus Metas'} el doble de rápido`,
+      scenes: [
+        {
+          id: 1,
+          text: 'Deja de hacer multitarea si realmente quieres terminar tus objetivos el doble de rápido.',
+          keyword: 'working laptop office focus',
+          searchTerms: ['working', 'laptop', 'office'],
+          durationSec: 4.2,
+        },
+        {
+          id: 2,
+          text: 'Bloques de trabajo profundo de 50 minutos entrenan a tu mente para entrar en estado de flujo sin esfuerzo.',
+          keyword: 'clock focus writing time',
+          searchTerms: ['clock', 'focus', 'writing'],
+          durationSec: 5.0,
+        },
+        {
+          id: 3,
+          text: 'Aplica el método Pomodoro hoy y verás cómo tu rendimiento diario se dispara.',
+          keyword: 'success city sunrise achievement',
+          searchTerms: ['success', 'city', 'sunrise'],
+          durationSec: 4.8,
+        },
+        {
+          id: 4,
+          text: 'Guarda este video y empieza tu primer bloque de 50 minutos ahora mismo.',
+          keyword: 'focus fire warrior desk work',
+          searchTerms: ['office', 'coffee', 'laptop'],
+          durationSec: 3.8,
+        },
+      ],
+      hashtags: ['#Productividad', '#Habitos', '#DeepWork', '#Enfoque', '#Disciplina', '#Shorts'],
+      description: 'El hábito comprobado de trabajo profundo que transformará tu productividad.',
+    }),
+  },
+
+  ai_future: {
+    name: '🤖 Futuro de la IA & Código',
+    mood: 'epic',
+    generator: (topic) => ({
+      title: `Herramientas de IA Open Source que reemplazarán suscripciones para ${topic || 'crear Videos'}`,
+      scenes: [
+        {
+          id: 1,
+          text: 'Las herramientas de inteligencia artificial de código abierto están reemplazando suscripciones caras.',
+          keyword: 'technology code server futuristic',
+          searchTerms: ['technology', 'code', 'server'],
+          durationSec: 4.5,
+        },
+        {
+          id: 2,
+          text: 'Con voces TTS ultra realistas, subtítulos Whisper y renderizado en cliente, creas videos ilimitados gratis.',
+          keyword: 'robot futuristic data cyberspace',
+          searchTerms: ['robot', 'futuristic', 'data'],
+          durationSec: 5.2,
+        },
+        {
+          id: 3,
+          text: 'Automatiza flujos de trabajo con Docker, MCP y APIs REST locales hoy mismo.',
+          keyword: 'network digital globe connection',
+          searchTerms: ['network', 'digital', 'globe'],
+          durationSec: 4.8,
+        },
+        {
+          id: 4,
+          text: 'Sigue el canal para dominar la revolución de la inteligencia artificial autónoma.',
+          keyword: 'subscribe neon glow code tech',
+          searchTerms: ['technology', 'server', 'code'],
+          durationSec: 3.8,
+        },
+      ],
+      hashtags: ['#InteligenciaArtificial', '#OpenSource', '#Tech', '#Programacion', '#ShortsAI', '#Shorts'],
+      description: 'Crea contenido con IA ilimitada y libre de costos con herramientas de código abierto.',
+    }),
+  },
+
+  ocean: {
+    name: '🌊 Océanos & Naturaleza Extrema',
+    mood: 'epic',
+    generator: (topic) => ({
+      title: `Los Secretos más Oscuros del Fondo del Océano y ${topic || 'el Abismo Marino'}`,
+      scenes: [
+        {
+          id: 1,
+          text: 'Más del ochenta por ciento de nuestro fondo oceánico permanece completamente inexplorado.',
+          keyword: 'ocean underwater waves mystery',
+          searchTerms: ['ocean', 'underwater', 'waves'],
+          durationSec: 4.6,
+        },
+        {
+          id: 2,
+          text: 'Criaturas bioluminiscentes generan su propia luz en la oscuridad absoluta de la Fosa de las Marianas.',
+          keyword: 'jellyfish deep sea dark water glowing',
+          searchTerms: ['jellyfish', 'deep sea', 'water'],
+          durationSec: 5.4,
+        },
+        {
+          id: 3,
+          text: 'A diez mil metros de profundidad, la presión aplastaría un submarino de acero como una lata.',
+          keyword: 'abyss deep submarine darkness',
+          searchTerms: ['underwater', 'ocean', 'darkness'],
+          durationSec: 4.8,
+        },
+        {
+          id: 4,
+          text: 'Nuestro planeta aún esconde miles de misterios esperando ser descubiertos.',
+          keyword: 'nature earth forest ocean planet',
+          searchTerms: ['nature', 'earth', 'ocean'],
+          durationSec: 3.8,
+        },
+      ],
+      hashtags: ['#Oceano', '#Naturaleza', '#Misterios', '#Ciencia', '#Abismo', '#Shorts'],
+      description: 'Un vistazo a las profundidades inexploradas del océano. ¿Bajarías a la fosa?',
     }),
   },
 
@@ -242,7 +367,8 @@ You MUST reply ONLY with valid JSON following this exact structure, with no mark
     {
       "id": 1,
       "text": "Narrated voiceover text for scene 1 (keep it punchy, 1-2 short sentences)",
-      "keyword": "2-4 english stock footage search terms for background (e.g. dark stormy night)",
+      "keyword": "space galaxy nebula",
+      "searchTerms": ["space", "galaxy", "nebula"],
       "durationSec": 4.0
     }
   ],
@@ -304,8 +430,13 @@ You MUST reply ONLY with valid JSON following this exact structure, with no mark
       const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(cleanJson);
 
-      // Validate structure
+      // Validate structure & guarantee searchTerms
       if (Array.isArray(parsed.scenes) && parsed.scenes.length > 0) {
+        parsed.scenes.forEach((s) => {
+          if (!s.searchTerms || !Array.isArray(s.searchTerms) || s.searchTerms.length === 0) {
+            s.searchTerms = (s.keyword || 'nature').split(/\s+/).filter(Boolean);
+          }
+        });
         return parsed;
       }
       throw new Error('Incomplete JSON structure received from LLM');

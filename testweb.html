@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Free Video Maker Studio — Open Source Unlimited Video Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#1e1b4b'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #090d16;
+      color: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #111827;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #4b5563;
+    }
+    .glass-panel {
+      background: rgba(17, 24, 39, 0.82);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP NAVBAR -->
+  <header class="sticky top-0 z-30 glass-panel border-b border-slate-800/80 px-6 py-3.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+          <i class="fa-solid fa-clapperboard text-white text-lg"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-lg tracking-tight text-white">Free Video Maker <span class="text-indigo-400">Studio</span></h1>
+            <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              Gratis & Ilimitado
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Basado en <code class="text-slate-300">bilalnaseer/free-video-maker</code> (Kokoro TTS + Whisper + Pexels + Remotion + MCP)</p>
+        </div>
+      </div>
+
+      <!-- Selector de Modo de Ejecución -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="bg-slate-900/90 p-1 rounded-xl border border-slate-800 flex items-center text-xs font-medium">
+          <button id="modeBrowserBtn" onclick="setEngineMode('browser')" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white shadow transition flex items-center gap-1.5">
+            <i class="fa-solid fa-bolt"></i> Modo Navegador (Sin Servidor)
+          </button>
+          <button id="modeServerBtn" onclick="setEngineMode('server')" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5">
+            <i class="fa-brands fa-docker"></i> Servidor Docker / REST API
+          </button>
+        </div>
+
+        <button onclick="toggleModal('mcpModal')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-2">
+          <i class="fa-solid fa-robot text-indigo-400"></i> Configuración MCP / Docker
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- COLUMNA IZQUIERDA: CONSTRUCTOR DE ESCENAS Y OPCIONES (7 cols) -->
+    <div class="lg:col-span-7 space-y-6">
+
+      <!-- BARRA DE CONEXIÓN / API KEYS -->
+      <section class="glass-panel rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-plug text-indigo-400"></i> Credenciales y Conexión
+          </h2>
+          <span id="connectionBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-medium">
+            ● Motor Web Activo
+          </span>
+        </div>
+
+        <!-- Configuración Modo Navegador -->
+        <div id="browserCredsPanel" class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+          <div class="sm:col-span-9">
+            <label class="block text-xs text-slate-400 mb-1">
+              Pexels API Key (Opcional — Gratuita en pexels.com/api para videos reales de fondo)
+            </label>
+            <div class="relative">
+              <input id="pexelsApiKeyInput" type="password" placeholder="Pega tu PEXELS_API_KEY aquí (o déjalo vacío para fondos procedurales HD)..."
+                class="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+              <button onclick="togglePasswordVisibility('pexelsApiKeyInput')" class="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300 text-xs">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div class="sm:col-span-3">
+            <button onclick="savePexelsKey()" class="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition">
+              <i class="fa-solid fa-floppy-disk mr-1"></i> Guardar Key
+            </button>
+          </div>
+        </div>
+
+        <!-- Configuración Modo Servidor Docker -->
+        <div id="serverCredsPanel" class="hidden grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+          <div class="sm:col-span-8">
+            <label class="block text-xs text-slate-400 mb-1">
+              URL del Servidor <code class="text-indigo-300">free-video-maker</code> (Por defecto <code class="text-slate-300">http://localhost:3123</code>)
+            </label>
+            <input id="serverUrlInput" type="text" value="http://localhost:3123"
+              class="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+          </div>
+          <div class="sm:col-span-4 flex gap-2">
+            <button onclick="checkServerHealth()" class="flex-1 py-2 px-3 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition">
+              <i class="fa-solid fa-heart-pulse mr-1"></i> Probar /health
+            </button>
+            <button onclick="syncServerCatalogs()" title="Cargar /api/voices y /api/music-tags" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition">
+              <i class="fa-solid fa-rotate"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- GENERADOR RÁPIDO DE GUIONES POR PLANTILLAS -->
+      <section class="glass-panel rounded-2xl p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i> Plantillas de Guion Automático (1-Clic)
+          </h2>
+          <span class="text-xs text-slate-400">Genera escenas listas con términos de búsqueda optimizados</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="loadPreset('curiosidades')" class="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-indigo-600/20 hover:border-indigo-500/40 border border-slate-700/80 text-xs font-medium text-slate-200 transition">
+            🌌 Curiosidades del Espacio
+          </button>
+          <button onclick="loadPreset('productividad')" class="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-indigo-600/20 hover:border-indigo-500/40 border border-slate-700/80 text-xs font-medium text-slate-200 transition">
+            ⚡ Hábitos de Productividad
+          </button>
+          <button onclick="loadPreset('ia')" class="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-indigo-600/20 hover:border-indigo-500/40 border border-slate-700/80 text-xs font-medium text-slate-200 transition">
+            🤖 Futuro de la IA
+          </button>
+          <button onclick="loadPreset('naturaleza')" class="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-indigo-600/20 hover:border-indigo-500/40 border border-slate-700/80 text-xs font-medium text-slate-200 transition">
+            🌊 Océanos Profundos
+          </button>
+        </div>
+      </section>
+
+      <!-- CONSTRUCTOR DE ESCENAS (SCENES BUILDER) -->
+      <section class="glass-panel rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+              <i class="fa-solid fa-layer-group text-indigo-400"></i> Escenas del Video (<code class="text-xs text-indigo-300">scenes[]</code>)
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Cada escena combina narración por voz, subtítulos sincronizados y búsqueda de clips en Pexels.</p>
+          </div>
+          <button onclick="addScene()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/25 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-plus"></i> Añadir Escena
+          </button>
+        </div>
+
+        <div id="scenesContainer" class="space-y-4 max-h-[430px] overflow-y-auto pr-1 custom-scrollbar">
+          <!-- Renderizado dinámico de escenas -->
+        </div>
+      </section>
+
+      <!-- CONFIGURACIÓN GLOBAL DEL VIDEO (CONFIG OBJECT) -->
+      <section class="glass-panel rounded-2xl p-5">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 mb-4">
+          <i class="fa-solid fa-sliders text-indigo-400"></i> Parámetros de Configuración (<code class="text-xs text-indigo-300">config{}</code>)
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Voz Kokoro TTS -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+              Voz Kokoro TTS (<code class="text-indigo-300">voice</code>)
+            </label>
+            <select id="cfgVoice" onchange="updateJsonPreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              <optgroup label="American Female (af_*)">
+                <option value="af_heart" selected>af_heart (Por defecto - Cálida)</option>
+                <option value="af_bella">af_bella (Expresiva)</option>
+                <option value="af_nicole">af_nicole (Narrativa)</option>
+                <option value="af_sarah">af_sarah (Clara / Noticias)</option>
+                <option value="af_sky">af_sky (Dinámica / Joven)</option>
+              </optgroup>
+              <optgroup label="American Male (am_*)">
+                <option value="am_adam">am_adam (Profunda / Documental)</option>
+                <option value="am_michael">am_michael (Energética)</option>
+              </optgroup>
+              <optgroup label="British Female & Male (bf_* / bm_*)">
+                <option value="bf_emma">bf_emma (Británica Suave)</option>
+                <option value="bf_isabella">bf_isabella (Británica Formal)</option>
+                <option value="bm_george">bm_george (Británico Clásico)</option>
+                <option value="bm_lewis">bm_lewis (Británico Moderno)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- Orientación -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+              Orientación (<code class="text-indigo-300">orientation</code>)
+            </label>
+            <select id="cfgOrientation" onchange="handleOrientationChange()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              <option value="portrait" selected>📱 Portrait 9:16 (TikTok / Shorts / Reels)</option>
+              <option value="landscape">🖥️ Landscape 16:9 (YouTube / Horizontal)</option>
+            </select>
+          </div>
+
+          <!-- Música / Mood -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+              Música de Fondo (<code class="text-indigo-300">music</code>)
+            </label>
+            <select id="cfgMusic" onchange="updateJsonPreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              <option value="chill" selected>🎵 chill (Lo-Fi & Relax)</option>
+              <option value="random">🎲 random (Aleatorio)</option>
+              <option value="upbeat">⚡ upbeat (Alegre / Viral)</option>
+              <option value="cinematic">🎬 cinematic (Épico / Película)</option>
+              <option value="corporate">💼 corporate (Tecnología / Negocios)</option>
+              <option value="dark">🌑 dark (Misterio / Suspenso)</option>
+              <option value="happy">☀️ happy (Positivo)</option>
+            </select>
+          </div>
+
+          <!-- Volumen de Música -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+              Volumen Música (<code class="text-indigo-300">musicVolume</code>)
+            </label>
+            <select id="cfgMusicVolume" onchange="updateJsonPreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              <option value="high">🔊 high (Alto - Por defecto)</option>
+              <option value="medium" selected>🔉 medium (Medio - Equilibrado)</option>
+              <option value="low">🔈 low (Bajo - Sutil)</option>
+              <option value="muted">🔇 muted (Sin música)</option>
+            </select>
+          </div>
+
+          <!-- Posición de Subtítulos -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+              Posición Subtítulos (<code class="text-indigo-300">captionPosition</code>)
+            </label>
+            <select id="cfgCaptionPos" onchange="updateJsonPreview()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              <option value="bottom" selected>⬇️ bottom (Abajo - Clásico)</option>
+              <option value="center">⏺️ center (Centro - Estilo Hormozi)</option>
+              <option value="top">⬆️ top (Arriba)</option>
+            </select>
+          </div>
+
+          <!-- Color de Resaltado de Subtítulo -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+              Color Palabra Activa (<code class="text-indigo-300">captionBackgroundColor</code>)
+            </label>
+            <div class="flex items-center gap-2">
+              <select id="cfgCaptionColor" onchange="updateJsonPreview()" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                <option value="blue" selected>🔵 blue (Azul por defecto)</option>
+                <option value="#6366f1">🟣 indigo (#6366f1)</option>
+                <option value="#10b981">🟢 emerald (#10b981)</option>
+                <option value="#f59e0b">🟡 amber (#f59e0b)</option>
+                <option value="#ef4444">🔴 red (#ef4444)</option>
+                <option value="#ec4899">🩷 pink (#ec4899)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Padding Back (ms) -->
+          <div class="sm:col-span-2 lg:col-span-3">
+            <div class="flex justify-between text-xs mb-1">
+              <label class="font-semibold text-slate-300">
+                Cola final después de la narración (<code class="text-indigo-300">paddingBack</code> en ms)
+              </label>
+              <span id="paddingBackLabel" class="text-indigo-400 font-bold">1500 ms</span>
+            </div>
+            <input id="cfgPaddingBack" type="range" min="0" max="5000" step="250" value="1500"
+              oninput="document.getElementById('paddingBackLabel').textContent = this.value + ' ms'; updateJsonPreview();"
+              class="w-full accent-indigo-500 cursor-pointer" />
+          </div>
+        </div>
+      </section>
+
+      <!-- PAYLOAD JSON Y CURL PARA API / MCP -->
+      <section class="glass-panel rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-code text-indigo-400"></i> Payload Exacto REST API (<code class="text-xs text-indigo-300">POST /api/short-video</code>)
+          </h2>
+          <div class="flex gap-2">
+            <button onclick="copyJsonPayload()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition">
+              <i class="fa-regular fa-copy mr-1"></i> Copiar JSON
+            </button>
+            <button onclick="copyCurlCommand()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition">
+              <i class="fa-solid fa-terminal mr-1"></i> Copiar cURL
+            </button>
+          </div>
+        </div>
+        <pre id="jsonPayloadPreview" class="bg-slate-950 border border-slate-800/90 rounded-xl p-3.5 text-[11px] text-emerald-400 font-mono overflow-x-auto max-h-48 custom-scrollbar"></pre>
+      </section>
+
+    </div>
+
+    <!-- COLUMNA DERECHA: REPRODUCTOR / RENDERIZADO EN VIVO + COLA DE VIDEOS (5 cols) -->
+    <div class="lg:col-span-5 space-y-6">
+
+      <!-- MONITOR DE PREVISUALIZACIÓN Y RENDERIZADO -->
+      <section class="glass-panel rounded-2xl p-5 flex flex-col items-center">
+        <div class="w-full flex items-center justify-between mb-4">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-film text-indigo-400"></i> Estudio de Renderizado
+          </h2>
+          <span id="renderStatusPill" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+            Listo para generar
+          </span>
+        </div>
+
+        <!-- Contenedor del Canvas (Cambia de aspecto según portrait/landscape) -->
+        <div id="canvasWrapper" class="relative w-full max-w-[300px] aspect-[9/16] bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-2xl flex items-center justify-center">
+          <canvas id="videoCanvas" width="720" height="1280" class="w-full h-full object-contain"></canvas>
+          <video id="serverVideoPlayer" controls class="hidden w-full h-full object-contain bg-black"></video>
+        </div>
+
+        <!-- Barra de progreso -->
+        <div class="w-full mt-4">
+          <div class="flex justify-between text-xs text-slate-400 mb-1">
+            <span id="progressStepText">Esperando orden...</span>
+            <span id="progressPercentText">0%</span>
+          </div>
+          <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+            <div id="progressBarFill" class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 w-0 transition-all duration-300"></div>
+          </div>
+        </div>
+
+        <!-- Botones Principales de Acción -->
+        <div class="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">
+          <button id="previewBtn" onclick="startVideoGeneration(false)" class="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-play text-indigo-400"></i> Previsualizar en Vivo
+          </button>
+          <button id="generateBtn" onclick="startVideoGeneration(true)" class="py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-video"></i> Generar y Descargar Video
+          </button>
+        </div>
+
+        <button id="stopRenderBtn" onclick="stopActiveRender()" class="hidden w-full mt-2 py-2 px-4 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-semibold transition">
+          <i class="fa-solid fa-stop mr-1"></i> Detener Renderizado
+        </button>
+      </section>
+
+      <!-- HISTORIAL Y GESTOR DE VIDEOS GENERADOS (LOCAL + /api/short-videos) -->
+      <section class="glass-panel rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-box-archive text-indigo-400"></i> Videos Generados (<span id="videosCountBadge">0</span>)
+          </h2>
+          <button onclick="refreshServerVideos()" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1">
+            <i class="fa-solid fa-arrows-rotate"></i> Actualizar Lista
+          </button>
+        </div>
+
+        <div id="videosHistoryList" class="space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+          <div class="text-center py-8 text-xs text-slate-500">
+            Aún no has generado videos en esta sesión. ¡Pulsa "Generar y Descargar Video" para crear el primero!
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- MODAL: GUÍA DOCKER & MCP -->
+  <div id="mcpModal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass-panel rounded-2xl max-w-3xl w-full p-6 border border-slate-700 max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-brands fa-docker text-indigo-400"></i> Despliegue Oficial Docker y Servidor MCP (<code class="text-indigo-300">bilalnaseer/free-video-maker</code>)
+        </h3>
+        <button onclick="toggleModal('mcpModal')" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs text-slate-300 leading-relaxed">
+        <p>
+          Puedes usar esta página web sin instalar nada gracias al <strong>Modo Navegador</strong>, o levantar el contenedor oficial de <code class="text-indigo-300">bilalnaseer/free-video-maker</code> para renderizar con <strong>Kokoro.js TTS + Whisper.cpp + Remotion + FFmpeg</strong> en tu propio equipo o VPS gratuito:
+        </p>
+
+        <div>
+          <h4 class="font-bold text-white mb-1">1. Ejecutar con Docker en 1 comando (Puerto 3123):</h4>
+          <pre class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-emerald-400 font-mono overflow-x-auto">docker run -it --rm --name short-video-maker -p 3123:3123 \
+  -e LOG_LEVEL=debug \
+  -e PEXELS_API_KEY=TU_PEXELS_API_KEY_GRATIS \
+  bilalnaseer/free-video-maker:latest</pre>
+        </div>
+
+        <div>
+          <h4 class="font-bold text-white mb-1">2. Conectar como Servidor MCP (Claude Desktop / Cursor / n8n):</h4>
+          <p class="text-slate-400 mb-1">El servidor expone SSE en <code class="text-indigo-300">http://localhost:3123/mcp/sse</code> y mensajes en <code class="text-indigo-300">/mcp/messages</code> con las herramientas <code class="text-emerald-300">create-short-video</code> y <code class="text-emerald-300">get-video-status</code>:</p>
+          <pre class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-indigo-300 font-mono overflow-x-auto">{
+  "mcpServers": {
+    "free-video-maker": {
+      "url": "http://localhost:3123/mcp/sse"
+    }
+  }
+}</pre>
+        </div>
+
+        <div>
+          <h4 class="font-bold text-white mb-1">3. Todos los Endpoints REST Soportados por esta Web:</h4>
+          <ul class="list-disc list-inside space-y-1 text-slate-400">
+            <li><code class="text-slate-200">GET /health</code> — Verifica el estado del servidor.</li>
+            <li><code class="text-slate-200">POST /api/short-video</code> — Crea un nuevo video con <code class="text-indigo-300">{ scenes, config }</code>.</li>
+            <li><code class="text-slate-200">GET /api/short-video/:id/status</code> — Consulta estado (<code class="text-amber-300">processing</code>, <code class="text-emerald-300">ready</code>, <code class="text-rose-300">failed</code>).</li>
+            <li><code class="text-slate-200">GET /api/short-video/:id</code> — Descarga el binario MP4 renderizado.</li>
+            <li><code class="text-slate-200">GET /api/short-videos</code> — Lista todos los videos en cola o terminados.</li>
+            <li><code class="text-slate-200">DELETE /api/short-video/:id</code> — Elimina un video del servidor.</li>
+            <li><code class="text-slate-200">GET /api/voices</code> & <code class="text-slate-200">GET /api/music-tags</code> — Sincroniza voces Kokoro y géneros musicales.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT PRINCIPAL DE LA APLICACIÓN -->
+  <script>
+    // --- ESTADO GLOBAL ---
+    let engineMode = 'browser'; // 'browser' | 'server'
+    let isRendering = false;
+    let abortRender = false;
+    let generatedVideos = [];
+    const JOKER_TERMS = ['nature', 'globe', 'space', 'ocean'];
+
+    let scenes = [
+      {
+        text: "Did you know that a single day on Venus is longer than an entire year on Venus?",
+        searchTerms: ["space", "planet", "cosmos"]
+      },
+      {
+        text: "Venus rotates so slowly on its axis that it takes 243 Earth days to complete just one rotation.",
+        searchTerms: ["galaxy", "stars", "universe"]
+      },
+      {
+        text: "Follow for more daily science facts created with open source tools!",
+        searchTerms: ["astronaut", "earth", "ocean"]
+      }
+    ];
+
+    // --- INICIALIZACIÓN ---
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedKey = localStorage.getItem('FVMS_PEXELS_KEY') || '';
+      document.getElementById('pexelsApiKeyInput').value = savedKey;
+      renderScenesUI();
+      updateJsonPreview();
+      drawIdleCanvas();
+    });
+
+    function toggleModal(id) {
+      const el = document.getElementById(id);
+      el.classList.toggle('hidden');
+    }
+
+    function togglePasswordVisibility(id) {
+      const input = document.getElementById(id);
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function savePexelsKey() {
+      const val = document.getElementById('pexelsApiKeyInput').value.trim();
+      localStorage.setItem('FVMS_PEXELS_KEY', val);
+      setStatusPill(val ? 'Pexels API Key guardada' : 'Usando fondos HD procedurales', 'emerald');
+    }
+
+    // --- CAMBIO DE MODO (BROWSER VS DOCKER SERVER) ---
+    function setEngineMode(mode) {
+      engineMode = mode;
+      const bBtn = document.getElementById('modeBrowserBtn');
+      const sBtn = document.getElementById('modeServerBtn');
+      const bPanel = document.getElementById('browserCredsPanel');
+      const sPanel = document.getElementById('serverCredsPanel');
+      const badge = document.getElementById('connectionBadge');
+
+      if (mode === 'browser') {
+        bBtn.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white shadow transition flex items-center gap-1.5';
+        sBtn.className = 'px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5';
+        bPanel.classList.remove('hidden');
+        sPanel.classList.add('hidden');
+        badge.textContent = '● Motor Web Activo (Sin Servidor)';
+        badge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-medium';
+        document.getElementById('serverVideoPlayer').classList.add('hidden');
+        document.getElementById('videoCanvas').classList.remove('hidden');
+      } else {
+        sBtn.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white shadow transition flex items-center gap-1.5';
+        bBtn.className = 'px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5';
+        sPanel.classList.remove('hidden');
+        bPanel.classList.add('hidden');
+        checkServerHealth();
+        refreshServerVideos();
+      }
+    }
+
+    // --- GESTIÓN DE ESCENAS ---
+    function renderScenesUI() {
+      const container = document.getElementById('scenesContainer');
+      container.innerHTML = '';
+
+      scenes.forEach((scene, index) => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3 transition hover:border-slate-700';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+              Escena #${index + 1}
+            </span>
+            <div class="flex items-center gap-1.5">
+              ${index > 0 ? `<button onclick="moveScene(${index}, -1)" title="Subir" class="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-arrow-up"></i></button>` : ''}
+              ${index < scenes.length - 1 ? `<button onclick="moveScene(${index}, 1)" title="Bajar" class="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-arrow-down"></i></button>` : ''}
+              <button onclick="removeScene(${index})" title="Eliminar escena" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Texto de Narración TTS y Subtítulos (<code class="text-slate-300">text</code>)</label>
+            <textarea rows="2" oninput="updateSceneText(${index}, this.value)"
+              placeholder="Escribe lo que narrará la voz en esta escena..."
+              class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">${scene.text}</textarea>
+          </div>
+
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">
+              Términos de búsqueda en Pexels (<code class="text-slate-300">searchTerms</code> separados por coma — si falla usa comodines: nature, globe, space, ocean)
+            </label>
+            <input type="text" value="${scene.searchTerms.join(', ')}"
+              oninput="updateSceneTerms(${index}, this.value)"
+              placeholder="ej. nature, cyberpunk, ocean, space"
+              class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-indigo-300 focus:outline-none focus:border-indigo-500" />
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function addScene() {
+      scenes.push({
+        text: "Add your next narration line right here to generate synchronized captions.",
+        searchTerms: ["nature", "ocean"]
+      });
+      renderScenesUI();
+      updateJsonPreview();
+    }
+
+    function removeScene(idx) {
+      if (scenes.length <= 1) {
+        alert('El video debe tener al menos 1 escena.');
+        return;
+      }
+      scenes.splice(idx, 1);
+      renderScenesUI();
+      updateJsonPreview();
+    }
+
+    function moveScene(idx, dir) {
+      const target = idx + dir;
+      if (target < 0 || target >= scenes.length) return;
+      const temp = scenes[idx];
+      scenes[idx] = scenes[target];
+      scenes[target] = temp;
+      renderScenesUI();
+      updateJsonPreview();
+    }
+
+    function updateSceneText(idx, val) {
+      scenes[idx].text = val;
+      updateJsonPreview();
+    }
+
+    function updateSceneTerms(idx, val) {
+      const terms = val.split(',').map(t => t.trim()).filter(Boolean);
+      scenes[idx].searchTerms = terms.length ? terms : ['nature'];
+      updateJsonPreview();
+    }
+
+    // --- PLANTILLAS PREDEFINIDAS ---
+    function loadPreset(type) {
+      const presets = {
+        curiosidades: [
+          { text: "Did you know there is a planet made almost entirely of solid diamond?", searchTerms: ["space", "planet", "galaxy"] },
+          { text: "Scientists discovered 55 Cancri e, a super Earth twice the size of our planet.", searchTerms: ["stars", "universe", "nebula"] },
+          { text: "Follow for more mind blowing astronomy facts every single day!", searchTerms: ["astronaut", "cosmos", "globe"] }
+        ],
+        productividad: [
+          { text: "Stop multitasking if you want to finish your goals twice as fast.", searchTerms: ["working", "laptop", "office"] },
+          { text: "Deep work blocks of 50 minutes train your brain to enter flow state effortlessly.", searchTerms: ["clock", "focus", "writing"] },
+          { text: "Try the Pomodoro method today and watch your daily output skyrocket.", searchTerms: ["success", "city", "sunrise"] }
+        ],
+        ia: [
+          { text: "Open source AI tools are replacing expensive monthly video subscriptions.", searchTerms: ["technology", "code", "server"] },
+          { text: "With Kokoro TTS, Whisper captions, and Remotion, your CPU renders full shorts for free.", searchTerms: ["robot", "futuristic", "data"] },
+          { text: "Build unlimited automated workflows with MCP and REST APIs today.", searchTerms: ["network", "digital", "globe"] }
+        ],
+        naturaleza: [
+          { text: "More than eighty percent of our ocean floor remains completely unmapped and unexplored.", searchTerms: ["ocean", "underwater", "waves"] },
+          { text: "Bioluminescent creatures create their own light in the pitch black Mariana Trench.", searchTerms: ["jellyfish", "deep sea", "water"] },
+          { text: "Our planet still hides thousands of mysteries waiting to be discovered.", searchTerms: ["nature", "earth", "forest"] }
+        ]
+      };
+      if (presets[type]) {
+        scenes = JSON.parse(JSON.stringify(presets[type]));
+        renderScenesUI();
+        updateJsonPreview();
+        drawIdleCanvas();
+      }
+    }
+
+    // --- PAYLOAD BUILDER ---
+    function getPayloadObject() {
+      return {
+        scenes: scenes.map(s => ({
+          text: s.text,
+          searchTerms: s.searchTerms && s.searchTerms.length ? s.searchTerms : JOKER_TERMS
+        })),
+        config: {
+          paddingBack: parseInt(document.getElementById('cfgPaddingBack').value, 10) || 1500,
+          music: document.getElementById('cfgMusic').value,
+          captionPosition: document.getElementById('cfgCaptionPos').value,
+          captionBackgroundColor: document.getElementById('cfgCaptionColor').value,
+          voice: document.getElementById('cfgVoice').value,
+          orientation: document.getElementById('cfgOrientation').value,
+          musicVolume: document.getElementById('cfgMusicVolume').value
+        }
+      };
+    }
+
+    function updateJsonPreview() {
+      const payload = getPayloadObject();
+      document.getElementById('jsonPayloadPreview').textContent = JSON.stringify(payload, null, 2);
+    }
+
+    function handleOrientationChange() {
+      const orientation = document.getElementById('cfgOrientation').value;
+      const wrapper = document.getElementById('canvasWrapper');
+      const canvas = document.getElementById('videoCanvas');
+
+      if (orientation === 'portrait') {
+        wrapper.className = 'relative w-full max-w-[300px] aspect-[9/16] bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-2xl flex items-center justify-center';
+        canvas.width = 720;
+        canvas.height = 1280;
+      } else {
+        wrapper.className = 'relative w-full max-w-[460px] aspect-[16/9] bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-800 shadow-2xl flex items-center justify-center';
+        canvas.width = 1280;
+        canvas.height = 720;
+      }
+      updateJsonPreview();
+      drawIdleCanvas();
+    }
+
+    function copyJsonPayload() {
+      navigator.clipboard.writeText(JSON.stringify(getPayloadObject(), null, 2));
+      setStatusPill('JSON copiado al portapapeles', 'indigo');
+    }
+
+    function copyCurlCommand() {
+      const baseUrl = (document.getElementById('serverUrlInput').value || 'http://localhost:3123').replace(/\/$/, '');
+      const jsonStr = JSON.stringify(getPayloadObject());
+      const curl = `curl --location '${baseUrl}/api/short-video' \\\n  --header 'Content-Type: application/json' \\\n  --data '${jsonStr.replace(/'/g, "'\\''")}'`;
+      navigator.clipboard.writeText(curl);
+      setStatusPill('Comando cURL copiado', 'indigo');
+    }
+
+    // --- UTILIDADES UI ---
+    function setStatusPill(text, color = 'slate') {
+      const pill = document.getElementById('renderStatusPill');
+      pill.textContent = text;
+      const colors = {
+        slate: 'bg-slate-800 text-slate-300 border-slate-700',
+        indigo: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+        emerald: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+        amber: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+        rose: 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+      };
+      pill.className = `text-xs px-2.5 py-0.5 rounded-full border ${colors[color] || colors.slate}`;
+    }
+
+    function setProgress(percent, text) {
+      document.getElementById('progressBarFill').style.width = `${Math.min(100, Math.max(0, percent))}%`;
+      document.getElementById('progressPercentText').textContent = `${Math.round(percent)}%`;
+      if (text) document.getElementById('progressStepText').textContent = text;
+    }
+
+    function drawIdleCanvas() {
+      const canvas = document.getElementById('videoCanvas');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const grad = ctx.createLinearGradient(0, 0, w, h);
+      grad.addColorStop(0, '#0f172a');
+      grad.addColorStop(0.5, '#1e1b4b');
+      grad.addColorStop(1, '#090d16');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Círculos decorativos
+      ctx.fillStyle = 'rgba(99, 102, 241, 0.12)';
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.4, Math.min(w, h) * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `800 ${Math.round(w * 0.05)}px Inter, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('FREE VIDEO MAKER', w / 2, h * 0.46);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = `500 ${Math.round(w * 0.032)}px Inter, sans-serif`;
+      ctx.fillText(`${scenes.length} escenas configuradas`, w / 2, h * 0.52);
+    }
+
+    // =========================================================================
+    // MODO 1: MOTOR DE RENDERIZADO EN NAVEGADOR (100% GRATIS E ILIMITADO)
+    // =========================================================================
+    async function fetchPexelsVideoForTerms(searchTerms, orientation) {
+      const apiKey = (document.getElementById('pexelsApiKeyInput').value || '').trim();
+      if (!apiKey) return null;
+
+      const allTerms = [...(searchTerms || []), ...JOKER_TERMS];
+      for (const term of allTerms) {
+        try {
+          const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(term)}&orientation=${orientation}&per_page=4&size=medium`;
+          const res = await fetch(url, { headers: { Authorization: apiKey } });
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data.videos && data.videos.length > 0) {
+            const chosen = data.videos[Math.floor(Math.random() * data.videos.length)];
+            const file = chosen.video_files.find(f => f.quality === 'hd' || f.quality === 'sd') || chosen.video_files[0];
+            if (file && file.link) {
+              const vid = document.createElement('video');
+              vid.crossOrigin = 'anonymous';
+              vid.src = file.link;
+              vid.muted = true;
+              vid.loop = true;
+              vid.playsInline = true;
+              await new Promise((resolve, reject) => {
+                vid.oncanplay = resolve;
+                vid.onerror = reject;
+                setTimeout(resolve, 3500);
+              });
+              return vid;
+            }
+          }
+        } catch (e) {
+          console.warn('Fallback Pexels term:', term, e);
+        }
+      }
+      return null;
+    }
+
+    // Generador de Música Procedural con Web Audio API (Libre de regalías e ilimitado)
+    function createBackgroundMusicTrack(audioCtx, destNode, mood, volumeSetting) {
+      if (volumeSetting === 'muted') return { stop: () => {} };
+
+      const volMap = { high: 0.22, medium: 0.12, low: 0.06, muted: 0 };
+      const masterGain = audioCtx.createGain();
+      masterGain.gain.value = volMap[volumeSetting] ?? 0.12;
+      masterGain.connect(destNode);
+      masterGain.connect(audioCtx.destination);
+
+      const moodChords = {
+        chill: [220, 261.63, 329.63, 392.00],
+        upbeat: [261.63, 329.63, 392.00, 523.25],
+        cinematic: [146.83, 220.00, 293.66, 349.23],
+        corporate: [246.94, 293.66, 369.99, 440.00],
+        dark: [130.81, 155.56, 196.00, 246.94],
+        happy: [293.66, 369.99, 440.00, 587.33],
+        random: [220, 277.18, 329.63, 440]
+      };
+      const notes = moodChords[mood] || moodChords.chill;
+      let step = 0;
+
+      const interval = setInterval(() => {
+        if (audioCtx.state === 'closed') return;
+        const osc = audioCtx.createOscillator();
+        const noteGain = audioCtx.createGain();
+        osc.type = mood === 'cinematic' || mood === 'dark' ? 'sawtooth' : 'triangle';
+        osc.frequency.setValueAtTime(notes[step % notes.length], audioCtx.currentTime);
+
+        noteGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        noteGain.gain.exponentialRampToValueAtTime(0.3, audioCtx.currentTime + 0.08);
+        noteGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.65);
+
+        osc.connect(noteGain);
+        noteGain.connect(masterGain);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.7);
+        step++;
+      }, 450);
+
+      return {
+        stop: () => {
+          clearInterval(interval);
+          try { masterGain.disconnect(); } catch (e) {}
+        }
+      };
+    }
+
+    function speakSceneBrowser(text, voiceId) {
+      return new Promise((resolve) => {
+        if (!('speechSynthesis' in window)) {
+          resolve();
+          return;
+        }
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          const isBritish = voiceId.startsWith('bf_') || voiceId.startsWith('bm_');
+          const preferred = voices.find(v => isBritish ? v.lang.includes('GB') : v.lang.includes('US')) || voices[0];
+          utter.voice = preferred;
+        }
+        utter.rate = 1.02;
+        utter.onend = () => resolve();
+        utter.onerror = () => resolve();
+        window.speechSynthesis.speak(utter);
+      });
+    }
+
+    function drawBackgroundFrame(ctx, w, h, bgVideo, sceneIndex, elapsedSec, searchTerms) {
+      if (bgVideo && bgVideo.readyState >= 2) {
+        const vw = bgVideo.videoWidth || w;
+        const vh = bgVideo.videoHeight || h;
+        const scale = Math.max(w / vw, h / vh);
+        const dw = vw * scale;
+        const dh = vh * scale;
+        ctx.drawImage(bgVideo, (w - dw) / 2, (h - dh) / 2, dw, dh);
+      } else {
+        // Fondo Dinámico HD Procedural inspirado en los searchTerms
+        const palettes = [
+          ['#0f172a', '#1e1b4b', '#312e81'],
+          ['#064e3b', '#0f172a', '#1e3a8a'],
+          ['#3b0764', '#1e1b4b', '#090d16'],
+          ['#451a03', '#1e1b4b', '#0f172a']
+        ];
+        const pal = palettes[sceneIndex % palettes.length];
+        const grad = ctx.createLinearGradient(0, 0, w, h);
+        grad.addColorStop(0, pal[0]);
+        grad.addColorStop(0.5, pal[1]);
+        grad.addColorStop(1, pal[2]);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Partículas animadas suaves
+        for (let i = 0; i < 12; i++) {
+          const px = ((Math.sin(elapsedSec * 0.6 + i * 1.7) + 1) / 2) * w;
+          const py = ((Math.cos(elapsedSec * 0.4 + i * 2.3) + 1) / 2) * h;
+          const radius = (i % 4 + 2) * (w * 0.018);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+          ctx.beginPath();
+          ctx.arc(px, py, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Etiqueta sutil de B-Roll
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.font = `600 ${Math.round(w * 0.024)}px Inter, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`B-ROLL: ${(searchTerms || []).join(' • ').toUpperCase()}`, 28, 44);
+      }
+
+      // Viñeta oscura para legibilidad de subtítulos
+      const vignette = ctx.createLinearGradient(0, 0, 0, h);
+      vignette.addColorStop(0, 'rgba(0,0,0,0.35)');
+      vignette.addColorStop(0.5, 'rgba(0,0,0,0.15)');
+      vignette.addColorStop(1, 'rgba(0,0,0,0.65)');
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    function drawSynchronizedCaptions(ctx, w, h, words, activeWordIdx, position, activeBgColor) {
+      if (!words || words.length === 0) return;
+
+      // Agrupar de 4 en 4 palabras (estilo Remotion / Whisper word-level)
+      const chunkSize = 4;
+      const chunkIndex = Math.floor(activeWordIdx / chunkSize);
+      const chunkWords = words.slice(chunkIndex * chunkSize, (chunkIndex + 1) * chunkSize);
+      const activeInChunk = activeWordIdx % chunkSize;
+
+      const fontSize = Math.round(w * (w > h ? 0.045 : 0.068));
+      ctx.font = `900 ${fontSize}px Inter, sans-serif`;
+      ctx.textBaseline = 'middle';
+
+      let yPos = h * 0.78;
+      if (position === 'center') yPos = h * 0.5;
+      if (position === 'top') yPos = h * 0.2;
+
+      const colorMap = {
+        blue: '#2563eb'
+      };
+      const highlightColor = colorMap[activeBgColor] || activeBgColor || '#2563eb';
+
+      // Medir ancho total de la línea
+      const spaceWidth = fontSize * 0.32;
+      const wordWidths = chunkWords.map(word => ctx.measureText(word.toUpperCase()).width);
+      const totalWidth = wordWidths.reduce((a, b) => a + b, 0) + spaceWidth * Math.max(0, chunkWords.length - 1);
+
+      let startX = (w - totalWidth) / 2;
+
+      chunkWords.forEach((word, idx) => {
+        const cleanWord = word.toUpperCase();
+        const ww = wordWidths[idx];
+        const padX = fontSize * 0.22;
+        const padY = fontSize * 0.24;
+
+        if (idx === activeInChunk) {
+          ctx.fillStyle = highlightColor;
+          ctx.beginPath();
+          ctx.roundRect(startX - padX / 2, yPos - fontSize / 2 - padY / 2, ww + padX, fontSize + padY, 12);
+          ctx.fill();
+        }
+
+        // Sombra y borde negro del texto
+        ctx.lineWidth = Math.max(4, Math.round(fontSize * 0.14));
+        ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+        ctx.textAlign = 'left';
+        ctx.strokeText(cleanWord, startX, yPos);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(cleanWord, startX, yPos);
+
+        startX += ww + spaceWidth;
+      });
+    }
+
+    async function runBrowserVideoPipeline(shouldRecord) {
+      const payload = getPayloadObject();
+      const canvas = document.getElementById('videoCanvas');
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      document.getElementById('serverVideoPlayer').classList.add('hidden');
+      canvas.classList.remove('hidden');
+
+      setStatusPill(shouldRecord ? 'Grabando Video...' : 'Previsualizando...', 'indigo');
+      setProgress(5, 'Preparando escenas y buscando clips en Pexels...');
+
+      // 1. Pre-cargar videos de Pexels si hay API Key
+      const sceneVideos = [];
+      for (let i = 0; i < payload.scenes.length; i++) {
+        if (abortRender) return;
+        setProgress(5 + ((i + 1) / payload.scenes.length) * 20, `Buscando B-Roll escena ${i + 1}/${payload.scenes.length}...`);
+        const vid = await fetchPexelsVideoForTerms(payload.scenes[i].searchTerms, payload.config.orientation);
+        sceneVideos.push(vid);
+      }
+
+      // 2. Configurar AudioContext y MediaRecorder si se solicita grabación
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const destNode = audioCtx.createMediaStreamDestination();
+      const musicController = createBackgroundMusicTrack(audioCtx, destNode, payload.config.music, payload.config.musicVolume);
+
+      let recorder = null;
+      const recordedChunks = [];
+
+      if (shouldRecord) {
+        const canvasStream = canvas.captureStream(30);
+        const combinedTracks = [
+          ...canvasStream.getVideoTracks(),
+          ...destNode.stream.getAudioTracks()
+        ];
+        const combinedStream = new MediaStream(combinedTracks);
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+          ? 'video/webm;codecs=vp9,opus'
+          : 'video/webm';
+
+        recorder = new MediaRecorder(combinedStream, { mimeType });
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+        };
+        recorder.start(100);
+      }
+
+      // 3. Renderizar cada escena con sincronización de palabras y TTS
+      const totalScenes = payload.scenes.length;
+      for (let sIdx = 0; sIdx < totalScenes; sIdx++) {
+        if (abortRender) break;
+
+        const scene = payload.scenes[sIdx];
+        const words = scene.text.trim().split(/\s+/).filter(Boolean);
+        const estimatedDurationMs = Math.max(2400, words.length * 360);
+        const bgVideo = sceneVideos[sIdx];
+        if (bgVideo) {
+          bgVideo.currentTime = 0;
+          bgVideo.play().catch(() => {});
+        }
+
+        // Disparar TTS
+        speakSceneBrowser(scene.text, payload.config.voice);
+
+        const startTime = performance.now();
+        await new Promise((resolve) => {
+          function renderFrame(now) {
+            if (abortRender) {
+              resolve();
+              return;
+            }
+            const elapsed = now - startTime;
+            const progressRatio = Math.min(1, elapsed / estimatedDurationMs);
+            const activeWordIdx = Math.min(words.length - 1, Math.floor(progressRatio * words.length));
+
+            drawBackgroundFrame(ctx, w, h, bgVideo, sIdx, now / 1000, scene.searchTerms);
+            drawSynchronizedCaptions(
+              ctx,
+              w,
+              h,
+              words,
+              activeWordIdx,
+              payload.config.captionPosition,
+              payload.config.captionBackgroundColor
+            );
+
+            const globalProgress = 25 + ((sIdx + progressRatio) / totalScenes) * 65;
+            setProgress(globalProgress, `Renderizando escena ${sIdx + 1} de ${totalScenes}...`);
+
+            if (elapsed < estimatedDurationMs) {
+              requestAnimationFrame(renderFrame);
+            } else {
+              resolve();
+            }
+          }
+          requestAnimationFrame(renderFrame);
+        });
+
+        if (bgVideo) bgVideo.pause();
+      }
+
+      // 4. Cola extra (paddingBack)
+      if (!abortRender && payload.config.paddingBack > 0) {
+        const padStart = performance.now();
+        const lastVideo = sceneVideos[sceneVideos.length - 1];
+        if (lastVideo) lastVideo.play().catch(() => {});
+        await new Promise((resolve) => {
+          function padFrame(now) {
+            if (abortRender || now - padStart >= payload.config.paddingBack) {
+              resolve();
+              return;
+            }
+            drawBackgroundFrame(ctx, w, h, lastVideo, totalScenes - 1, now / 1000, ['outro']);
+            setProgress(95, `Aplicando paddingBack (${payload.config.paddingBack}ms)...`);
+            requestAnimationFrame(padFrame);
+          }
+          requestAnimationFrame(padFrame);
+        });
+        if (lastVideo) lastVideo.pause();
+      }
+
+      // 5. Cerrar audio y exportar archivo
+      musicController.stop();
+      window.speechSynthesis && window.speechSynthesis.cancel();
+
+      if (recorder && recorder.state !== 'inactive') {
+        await new Promise((resolve) => {
+          recorder.onstop = resolve;
+          recorder.stop();
+        });
+      }
+      try { await audioCtx.close(); } catch (e) {}
+
+      if (abortRender) {
+        setStatusPill('Renderizado cancelado', 'rose');
+        setProgress(0, 'Cancelado por el usuario');
+        return;
+      }
+
+      setProgress(100, '¡Video completado con éxito!');
+      setStatusPill('¡Video Listo!', 'emerald');
+
+      if (shouldRecord && recordedChunks.length > 0) {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const videoId = 'local_' + Date.now().toString(36);
+        generatedVideos.unshift({
+          id: videoId,
+          status: 'ready',
+          mode: 'browser',
+          url,
+          orientation: payload.config.orientation,
+          createdAt: new Date().toLocaleTimeString()
+        });
+        renderVideosHistory();
+
+        // Descarga automática
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `short-video-${videoId}.webm`;
+        a.click();
+      }
+    }
+
+    // =========================================================================
+    // MODO 2: CLIENTE REST OFICIAL (bilalnaseer/free-video-maker :3123)
+    // =========================================================================
+    function getServerBaseUrl() {
+      return (document.getElementById('serverUrlInput').value || 'http://localhost:3123').replace(/\/$/, '');
+    }
+
+    async function checkServerHealth() {
+      const baseUrl = getServerBaseUrl();
+      const badge = document.getElementById('connectionBadge');
+      try {
+        const res = await fetch(`${baseUrl}/health`);
+        const data = await res.json();
+        if (data && data.status === 'ok') {
+          badge.textContent = '● Docker Server Online (/health OK)';
+          badge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-medium';
+          setStatusPill('Conectado a localhost:3123', 'emerald');
+          return true;
+        }
+      } catch (e) {
+        badge.textContent = '● Servidor Offline (Usa Docker o Modo Web)';
+        badge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium';
+      }
+      return false;
+    }
+
+    async function syncServerCatalogs() {
+      const baseUrl = getServerBaseUrl();
+      try {
+        const [voicesRes, musicRes] = await Promise.all([
+          fetch(`${baseUrl}/api/voices`),
+          fetch(`${baseUrl}/api/music-tags`)
+        ]);
+        if (voicesRes.ok) {
+          const voices = await voicesRes.json();
+          if (Array.isArray(voices) && voices.length) {
+            const sel = document.getElementById('cfgVoice');
+            sel.innerHTML = voices.map(v => `<option value="${v}">${v}</option>`).join('');
+          }
+        }
+        if (musicRes.ok) {
+          const tags = await musicRes.json();
+          if (Array.isArray(tags) && tags.length) {
+            const sel = document.getElementById('cfgMusic');
+            sel.innerHTML = tags.map(t => `<option value="${t}">${t}</option>`).join('');
+          }
+        }
+        setStatusPill('Voces y música sincronizadas del servidor', 'emerald');
+      } catch (e) {
+        setStatusPill('No se pudo conectar a /api/voices. ¿Está corriendo Docker?', 'rose');
+      }
+    }
+
+    async function runServerVideoPipeline() {
+      const baseUrl = getServerBaseUrl();
+      const payload = getPayloadObject();
+
+      setStatusPill('Enviando a POST /api/short-video...', 'indigo');
+      setProgress(15, 'Enviando payload al servidor Docker...');
+
+      try {
+        const res = await fetch(`${baseUrl}/api/short-video`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const { videoId } = await res.json();
+
+        setStatusPill(`ID: ${videoId} (Procesando)`, 'amber');
+        setProgress(35, `Renderizando con Kokoro + Whisper + Remotion (${videoId})...`);
+
+        // Polling a GET /api/short-video/{id}/status
+        let status = 'processing';
+        let pollCount = 0;
+        while (status === 'processing' && !abortRender) {
+          await new Promise(r => setTimeout(r, 3000));
+          pollCount++;
+          const stRes = await fetch(`${baseUrl}/api/short-video/${videoId}/status`);
+          const stData = await stRes.json();
+          status = stData.status;
+          setProgress(Math.min(92, 35 + pollCount * 5), `Estado del servidor: ${status}...`);
+        }
+
+        if (status === 'ready') {
+          const videoUrl = `${baseUrl}/api/short-video/${videoId}`;
+          setProgress(100, '¡Video MP4 renderizado en el servidor!');
+          setStatusPill('¡MP4 Listo!', 'emerald');
+
+          const player = document.getElementById('serverVideoPlayer');
+          document.getElementById('videoCanvas').classList.add('hidden');
+          player.classList.remove('hidden');
+          player.src = videoUrl;
+          player.play().catch(() => {});
+
+          await refreshServerVideos();
+        } else {
+          setStatusPill(`Error o estado: ${status}`, 'rose');
+        }
+      } catch (err) {
+        setStatusPill('Servidor Docker no detectado. Cambia a Modo Navegador o inicia Docker.', 'rose');
+        setProgress(0, 'Error de conexión con ' + baseUrl);
+      }
+    }
+
+    async function refreshServerVideos() {
+      if (engineMode === 'server') {
+        const baseUrl = getServerBaseUrl();
+        try {
+          const res = await fetch(`${baseUrl}/api/short-videos`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && Array.isArray(data.videos)) {
+              const serverItems = data.videos.map(v => ({
+                id: v.id,
+                status: v.status,
+                mode: 'server',
+                url: `${baseUrl}/api/short-video/${v.id}`,
+                createdAt: 'Servidor Docker'
+              }));
+              const localOnly = generatedVideos.filter(v => v.mode === 'browser');
+              generatedVideos = [...serverItems, ...localOnly];
+            }
+          }
+        } catch (e) {}
+      }
+      renderVideosHistory();
+    }
+
+    async function deleteVideoItem(id, mode) {
+      if (mode === 'server') {
+        const baseUrl = getServerBaseUrl();
+        try {
+          await fetch(`${baseUrl}/api/short-video/${id}`, { method: 'DELETE' });
+        } catch (e) {}
+      }
+      generatedVideos = generatedVideos.filter(v => v.id !== id);
+      renderVideosHistory();
+    }
+
+    function renderVideosHistory() {
+      const list = document.getElementById('videosHistoryList');
+      document.getElementById('videosCountBadge').textContent = generatedVideos.length;
+
+      if (generatedVideos.length === 0) {
+        list.innerHTML = `<div class="text-center py-8 text-xs text-slate-500">Aún no hay videos generados.</div>`;
+        return;
+      }
+
+      list.innerHTML = generatedVideos.map(v => `
+        <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-white truncate">${v.id}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full ${v.status === 'ready' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}">
+                ${v.status}
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-0.5">${v.mode === 'browser' ? '⚡ Generado en Navegador' : '🐳 Servidor Docker'} • ${v.createdAt}</p>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            ${v.status === 'ready' ? `
+              <a href="${v.url}" download="video-${v.id}.${v.mode === 'browser' ? 'webm' : 'mp4'}" target="_blank"
+                class="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition">
+                <i class="fa-solid fa-download"></i>
+              </a>
+            ` : ''}
+            <button onclick="deleteVideoItem('${v.id}', '${v.mode}')" class="px-2.5 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-xs transition">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // --- DISPARADOR UNIFICADO ---
+    async function startVideoGeneration(shouldRecord) {
+      if (isRendering) return;
+      isRendering = true;
+      abortRender = false;
+      document.getElementById('stopRenderBtn').classList.remove('hidden');
+
+      try {
+        if (engineMode === 'browser') {
+          await runBrowserVideoPipeline(shouldRecord);
+        } else {
+          await runServerVideoPipeline();
+        }
+      } finally {
+        isRendering = false;
+        document.getElementById('stopRenderBtn').classList.add('hidden');
+      }
+    }
+
+    function stopActiveRender() {
+      abortRender = true;
+      window.speechSynthesis && window.speechSynthesis.cancel();
+    }
+  </script>
+</body>
+</html>
