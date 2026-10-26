@@ -76,11 +76,11 @@
       <div>
         <h1 class="brand-title">ShortsCraft AI</h1>
       </div>
-      <span id="connectionBadge" class="brand-badge badge-browser">● Web Engine Activo</span>
+      <span id="connectionBadge" class="brand-badge badge-browser header-desktop-only">● Web Engine Activo</span>
     </div>
 
-    <!-- Engine Mode Selector -->
-    <div class="engine-mode-selector">
+    <!-- Engine Mode Selector (Desktop only) -->
+    <div class="engine-mode-selector header-desktop-only">
       <button id="btnModeBrowser" class="engine-tab active" title="Renderizado en navegador con Canvas 60 FPS + Web Audio + MediaRecorder">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
         <span>Modo Navegador</span>
@@ -92,25 +92,25 @@
     </div>
 
     <div class="header-actions">
-      <button id="btnToggleOrientation" class="btn btn-secondary" title="Cambiar orientación de video (9:16 vertical o 16:9 horizontal)">
+      <button id="btnToggleOrientation" class="btn btn-secondary btn-header-orientation" title="Cambiar orientación de video (9:16 vertical o 16:9 horizontal)">
         <span id="orientationIcon">📱</span>
         <span id="orientationText">9:16</span>
       </button>
 
-      <button id="btnOpenDockerModal" class="btn btn-secondary" title="Guía de despliegue Docker y Servidor MCP">
+      <button id="btnOpenDockerModal" class="btn btn-secondary header-desktop-only" title="Guía de despliegue Docker y Servidor MCP">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
         <span>Docker / MCP</span>
       </button>
 
-      <button id="btnSettings" class="btn btn-secondary" title="Configurar API Keys">
+      <button id="btnSettings" class="btn btn-secondary btn-header-settings" title="Configurar API Keys">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
           <circle cx="12" cy="12" r="3"></circle>
         </svg>
-        <span>API Keys</span>
+        <span class="header-btn-text">API Keys</span>
       </button>
 
-      <button id="btnHeaderExport" class="btn btn-primary">
+      <button id="btnHeaderExport" class="btn btn-primary header-desktop-only">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="7 10 12 15 17 10"></polyline>
@@ -120,6 +120,18 @@
       </button>
     </div>
   </header>
+
+  <!-- Mobile Quick View Switcher Bar (visible only on <= 768px) -->
+  <div class="mobile-view-switcher" id="mobileViewSwitcher">
+    <button class="mobile-switch-pill active" id="btnPillEditor" data-target-panel="create">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+      <span>Editor & Guión</span>
+    </button>
+    <button class="mobile-switch-pill" id="btnPillStudio" data-target-panel="studio">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+      <span>Reproductor 9:16</span>
+    </button>
+  </div>
 
   <!-- Studio Main Content -->
   <main class="studio-container">
@@ -171,7 +183,7 @@
           <input type="text" id="topicInput" class="form-input" placeholder="Ej: La paradoja del tiempo, hábitos de los millonarios, misterios del océano...">
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div class="form-row-responsive">
           <div class="form-group">
             <label class="form-label" for="aiProviderSelect">Motor de Inteligencia Artificial</label>
             <select id="aiProviderSelect" class="form-select">
@@ -228,7 +240,7 @@
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div class="form-row-responsive">
           <div class="form-group">
             <label class="form-label" for="fontFamilySelect">✏️ Tipografía Viral</label>
             <select id="fontFamilySelect" class="form-select">
@@ -293,7 +305,7 @@
           </select>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div class="form-row-responsive">
           <div class="form-group">
             <label class="form-label" for="speechRateRange">
               <span>Velocidad de Locución</span>
@@ -329,7 +341,7 @@
 
       <!-- TAB 5: SEO & METADATA -->
       <div id="tab-seo" class="tab-content">
-        <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: var(--radius-md); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px;">
+        <div class="seo-banner-row">
           <div>
             <strong style="color: #ffffff; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
               <span>🚀 Suite de Crecimiento & SEO Viral</span>

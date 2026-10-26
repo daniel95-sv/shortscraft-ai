@@ -922,7 +922,7 @@ class AppController {
         this.showToast('¡Guión y escenas sincronizadas con éxito!', 'success');
 
         // On mobile, switch smoothly to the live studio preview
-        if (window.innerWidth <= 1024) {
+        if (window.innerWidth <= 768) {
           this.switchMobileView('studio');
         } else {
           // Switch automatically to Scene Editor tab so user sees the generated cards
@@ -1193,44 +1193,65 @@ class AppController {
     navItems.forEach((btn) => {
       btn.addEventListener('click', () => {
         const target = btn.dataset.targetPanel;
+        if (target === 'export') {
+          this.switchMobileView('export');
+          return;
+        }
         navItems.forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         this.switchMobileView(target);
       });
     });
+
+    // Top switcher pills
+    const pillEditor = document.getElementById('btnPillEditor');
+    const pillStudio = document.getElementById('btnPillStudio');
+    pillEditor?.addEventListener('click', () => this.switchMobileView('create'));
+    pillStudio?.addEventListener('click', () => this.switchMobileView('studio'));
   }
 
   switchMobileView(view) {
     const controlPanel = document.getElementById('mobileControlPanel');
     const previewCol = document.getElementById('mobilePreviewColumn');
-    const isMobile = window.innerWidth <= 1024;
+    const isMobile = window.innerWidth <= 768;
 
     if (!isMobile) {
-      // On desktop, keep both panels visible and activate the tab
       if (view === 'create') document.querySelector('[data-tab="tab-ai"]')?.click();
       if (view === 'style') document.querySelector('[data-tab="tab-style"]')?.click();
       if (view === 'seo') document.querySelector('[data-tab="tab-seo"]')?.click();
-      if (view === 'export') document.getElementById('btnHeaderExport')?.click();
+      if (view === 'export') {
+        const btnExp = document.getElementById('btnExportVideo') || document.getElementById('btnHeaderExport');
+        btnExp?.click();
+      }
+      return;
+    }
+
+    if (view === 'export') {
+      const btnExp = document.getElementById('btnExportVideo') || document.getElementById('btnHeaderExport');
+      btnExp?.click();
       return;
     }
 
     if (view === 'studio') {
       controlPanel?.classList.remove('mobile-active');
       previewCol?.classList.add('mobile-active');
-      previewCol?.scrollIntoView({ behavior: 'smooth' });
-    } else if (view === 'export') {
-      document.getElementById('btnHeaderExport')?.click();
+      window.scrollTo({ top: 0, behavior: 'instant' });
     } else {
       previewCol?.classList.remove('mobile-active');
       controlPanel?.classList.add('mobile-active');
-      controlPanel?.scrollIntoView({ behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'instant' });
 
       if (view === 'create') document.querySelector('[data-tab="tab-ai"]')?.click();
       if (view === 'style') document.querySelector('[data-tab="tab-style"]')?.click();
       if (view === 'seo') document.querySelector('[data-tab="tab-seo"]')?.click();
     }
 
-    // Sync active nav item
+    // Sync top pills
+    const isStudioActive = view === 'studio';
+    document.getElementById('btnPillEditor')?.classList.toggle('active', !isStudioActive);
+    document.getElementById('btnPillStudio')?.classList.toggle('active', isStudioActive);
+
+    // Sync bottom navigation items
     document.querySelectorAll('.bottom-nav .nav-item').forEach((b) => {
       b.classList.toggle('active', b.dataset.targetPanel === view);
     });

@@ -7,6 +7,7 @@
   flex-direction: column;
   align-items: center;
   gap: 20px;
+  width: 100%;
   position: sticky;
   top: 94px;
 }
@@ -15,11 +16,11 @@
 .phone-mockup {
   position: relative;
   width: 100%;
-  max-width: 360px;
+  max-width: min(360px, 100%);
   aspect-ratio: 9 / 16;
   background: #000000;
-  border-radius: 40px;
-  padding: 12px;
+  border-radius: 36px;
+  padding: 10px;
   box-shadow: 
     0 25px 60px -15px rgba(0, 0, 0, 0.9),
     0 0 0 2px rgba(255, 255, 255, 0.1),
@@ -27,6 +28,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  margin: 0 auto;
 }
 
 /* Dynamic Island / Notch */
@@ -161,7 +163,8 @@
 /* Timeline Controls Card */
 .timeline-card {
   width: 100%;
-  max-width: 360px;
+  max-width: min(360px, 100%);
+  margin: 0 auto;
   background: var(--bg-card);
   backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
@@ -268,7 +271,8 @@
 /* Export CTA Section */
 .export-panel-cta {
   width: 100%;
-  max-width: 360px;
+  max-width: min(360px, 100%);
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -277,7 +281,7 @@
 
 /* Landscape Mode for Phone Mockup & Controls */
 .phone-mockup.landscape {
-  max-width: 520px;
+  max-width: min(520px, 100%);
   aspect-ratio: 16 / 9;
   border-radius: 28px;
   padding: 10px;
@@ -297,13 +301,14 @@
 
 .timeline-card.landscape,
 .export-panel-cta.landscape {
-  max-width: 520px;
+  max-width: min(520px, 100%);
 }
 
 /* Generated Videos History Manager */
 .history-card {
   width: 100%;
-  max-width: 360px;
+  max-width: min(360px, 100%);
+  margin: 0 auto;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
