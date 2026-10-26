@@ -33,6 +33,9 @@ export const AudioMixer = {
     this.musicGain = this.ctx.createGain();
     this.musicGain.gain.value = this.targetVolume;
 
+    this.sfxGain = this.ctx.createGain();
+    this.sfxGain.gain.value = 0.45;
+
     this.speechGain = this.ctx.createGain();
     this.speechGain.gain.value = 1.0;
 
@@ -91,7 +94,11 @@ export const AudioMixer = {
 
   getMediaStream() {
     this.init();
-    return this.mediaStreamDest.stream;
+    if (!this.mediaStreamDest && this.ctx) {
+      this.mediaStreamDest = this.ctx.createMediaStreamDestination();
+      this.masterGain?.connect(this.mediaStreamDest);
+    }
+    return this.mediaStreamDest ? this.mediaStreamDest.stream : null;
   },
 
   /**
@@ -125,8 +132,10 @@ export const AudioMixer = {
    * Plays a dynamic Sound Effect (Whoosh, Ding, Pop)
    */
   playSfx(type = 'whoosh') {
-    this.init();
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    try {
+      this.init();
+      if (!this.ctx || !this.sfxGain) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
 
     const now = this.ctx.currentTime;
 
@@ -191,6 +200,9 @@ export const AudioMixer = {
 
       osc.start(now);
       osc.stop(now + 0.5);
+    }
+    } catch (e) {
+      console.warn('SFX playback error ignored:', e);
     }
   },
 

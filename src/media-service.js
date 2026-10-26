@@ -80,8 +80,11 @@ export const MediaService = {
             vid.muted = true;
             vid.loop = true;
             vid.playsInline = true;
+            vid.preload = 'auto';
+            vid.load();
 
             await new Promise((resolve) => {
+              vid.onloadeddata = resolve;
               vid.oncanplay = resolve;
               vid.onerror = resolve;
               setTimeout(resolve, 3500); // 3.5s timeout safeguard

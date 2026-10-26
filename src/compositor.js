@@ -146,6 +146,15 @@ export const Compositor = {
     this.isPlaying = true;
     this.lastFrameTime = performance.now();
 
+    // Trigger custom video playback if active scene has one
+    const info = this.getCurrentSceneInfo();
+    if (info && info.scene) {
+      const media = MediaService.getCustomMedia(info.scene.id);
+      if (media?.type === 'video' && media.element) {
+        media.element.play().catch(() => {});
+      }
+    }
+
     // Trigger TTS voice for the active scene
     this.speakCurrentScene();
 
@@ -159,6 +168,12 @@ export const Compositor = {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
+    // Pause any playing custom video elements
+    MediaService.customMedia.forEach((media) => {
+      if (media.type === 'video' && media.element && !media.element.paused) {
+        media.element.pause();
+      }
+    });
     AudioMixer.stopMusic();
     TTSEngine.stop();
     this.requestRender();
@@ -234,10 +249,28 @@ export const Compositor = {
         // Check scene transition
         const info = this.getCurrentSceneInfo();
         if (info && info.sceneIndex !== prevSceneIdx) {
+          // Pause previous scene's video if applicable
+          const prevScene = this.project.scenes[prevSceneIdx];
+          if (prevScene) {
+            const prevMedia = MediaService.getCustomMedia(prevScene.id);
+            if (prevMedia?.type === 'video' && prevMedia.element && !prevMedia.element.paused) {
+              prevMedia.element.pause();
+            }
+          }
+
           this.currentSceneIndex = info.sceneIndex;
           AudioMixer.playSfx('whoosh');
           if (this.onSceneChange) this.onSceneChange(this.currentSceneIndex);
           this.speakCurrentScene();
+
+          // Start current scene's video if present
+          if (info.scene) {
+            const curMedia = MediaService.getCustomMedia(info.scene.id);
+            if (curMedia?.type === 'video' && curMedia.element) {
+              curMedia.element.currentTime = 0;
+              curMedia.element.play().catch(() => {});
+            }
+          }
         }
 
         // Check playback end
@@ -322,13 +355,23 @@ export const Compositor = {
     if (customMedia) {
       if (customMedia.type === 'video' && customMedia.element) {
         const vid = customMedia.element;
-        const vw = vid.videoWidth || w;
-        const vh = vid.videoHeight || h;
-        const scale = Math.max(w / vw, h / vh);
-        const dw = vw * scale;
-        const dh = vh * scale;
-        ctx.drawImage(vid, (w - dw) / 2, (h - dh) / 2, dw, dh);
-        return;
+
+        if (this.isPlaying && vid.paused) {
+          vid.play().catch(() => {});
+        } else if (!this.isPlaying && !vid.paused) {
+          vid.pause();
+        }
+
+        // Draw video frame if ready and valid
+        if (vid.readyState >= 2 && vid.videoWidth > 0 && vid.videoHeight > 0) {
+          const vw = vid.videoWidth;
+          const vh = vid.videoHeight;
+          const scale = Math.max(w / vw, h / vh);
+          const dw = vw * scale;
+          const dh = vh * scale;
+          ctx.drawImage(vid, (w - dw) / 2, (h - dh) / 2, dw, dh);
+          return;
+        }
       } else if (customMedia.type === 'image' && customMedia.element) {
         const img = customMedia.element;
         const vw = img.naturalWidth || img.width || w;
@@ -345,20 +388,20 @@ export const Compositor = {
       }
     }
 
-    // Procedural high-performance motion graphics
+    // Procedural high-performance motion graphics (fallback or default)
     const bgRenderer = MediaService.proceduralBackgrounds[this.bgType] || MediaService.proceduralBackgrounds['cyber-grid'];
     bgRenderer.draw(ctx, w, h, timeSec);
   },
 
   drawContrastOverlay(ctx, w, h) {
-    const grad = ctx.createLinearGradient(0, h * 0.45, 0, h);
+    // Subtle, modern lower-third gradient for crisp subtitle legibility without muting video brightness
+    const grad = ctx.createLinearGradient(0, h * 0.65, 0, h);
     grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    grad.addColorStop(0.35, 'rgba(0, 0, 0, 0.25)');
-    grad.addColorStop(0.75, 'rgba(0, 0, 0, 0.7)');
-    grad.addColorStop(1, 'rgba(0, 0, 0, 0.9)');
+    grad.addColorStop(0.5, 'rgba(0, 0, 0, 0.22)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0.48)');
 
     ctx.fillStyle = grad;
-    ctx.fillRect(0, h * 0.45, w, h * 0.55);
+    ctx.fillRect(0, h * 0.65, w, h * 0.35);
   },
 
   drawTopProgressBar(ctx, w, h) {

@@ -70,11 +70,12 @@ export const VideoExporter = {
 
       // 2. Capture audio stream from AudioMixer
       const audioStream = AudioMixer.getMediaStream();
+      const audioTracks = audioStream ? audioStream.getAudioTracks() : [];
 
       // Combine video and audio tracks
       const combinedStream = new MediaStream([
         ...canvasStream.getVideoTracks(),
-        ...audioStream.getAudioTracks(),
+        ...audioTracks,
       ]);
 
       // Detect best supported mimeType

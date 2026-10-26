@@ -638,6 +638,12 @@ class AppController {
     if (icon) icon.textContent = isLand ? '🖥️' : '📱';
     if (text) text.textContent = isLand ? '16:9' : '9:16';
 
+    if (isLand) {
+      this.showToast('🖥️ Formato 16:9 activo: los nuevos guiones se calibrarán para ~2 minutos (18-22 escenas).', 'info', 4000);
+    } else {
+      this.showToast('📱 Formato 9:16 activo: los nuevos guiones se calibrarán para ~1 minuto (10-12 escenas para Shorts).', 'info', 4000);
+    }
+
     this.updatePayloadPreview();
   }
 
@@ -996,6 +1002,7 @@ class AppController {
           provider,
           apiKey,
           language,
+          orientation: this.orientation || Compositor.orientation || 'portrait',
         });
 
         this.setProject(generated);
@@ -1108,22 +1115,29 @@ class AppController {
 
     // Preview sample button for ElevenLabs voice
     document.getElementById('btnPreviewElevenVoice')?.addEventListener('click', async (e) => {
-      const btn = e.target;
-      const originalText = btn.textContent;
-      const voiceId = elevenLabsVoiceSelect?.value || 'CwhRBWXzGAHq8TQ4Fs17';
-      btn.textContent = '🔊 Generando...';
+      const btn = e.currentTarget || document.getElementById('btnPreviewElevenVoice');
+      const originalText = '▶ Escuchar Muestra';
+      const voiceId = elevenLabsVoiceSelect?.value || this.settings.elevenLabsVoiceId || 'CwhRBWXzGAHq8TQ4Fs17';
+      const apiKey = this.apiKeys.elevenlabs;
+
+      if (!apiKey) {
+        this.showToast('Por favor introduce tu API Key de ElevenLabs en "API Keys" para escuchar muestras.', 'warning', 4500);
+        return;
+      }
+
+      btn.textContent = '🔊 Generando muestra...';
       try {
         await TTSEngine.speakText({
           text: 'Hola, esta es una prueba de voz hiperrealista para tus videos de ShortsCraft AI.',
           engine: 'elevenlabs',
-          elevenLabsApiKey: this.apiKeys.elevenlabs,
+          elevenLabsApiKey: apiKey,
           elevenLabsVoiceId: voiceId,
           onEnd: () => {
             btn.textContent = originalText;
           },
         });
       } catch (err) {
-        this.showToast('No se pudo reproducir la muestra de voz.', 'error');
+        this.showToast(`Error al reproducir muestra: ${err.message || err}`, 'error', 4500);
         btn.textContent = originalText;
       }
     });

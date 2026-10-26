@@ -132,9 +132,18 @@ export const CaptionAnimator = {
     const activeColor = customColors?.highlightColor || style.activeColor;
     const primaryColor = customColors?.primaryColor || style.textColor;
     const strokeColor = customColors?.strokeColor || style.strokeColor;
-    const strokeWidth = fontSize * style.strokeWidthRatio;
     const scale = canvasWidth / 1080;
-    const effectiveFontFamily = fontFamilyOverride ? `'${fontFamilyOverride}', ${style.fontFamily}` : style.fontFamily;
+    // 1. SYNCHRONIZATION: Do NOT show captions before the voice begins speaking
+    const firstWordStart = words[0]?.startSec ?? 0;
+    if (sceneElapsedSec < firstWordStart) {
+      return; // Clean canvas before audio starts
+    }
+
+    // 2. DISMISSAL: Disappear gracefully 0.45s after the final word is spoken
+    const lastWordEnd = words[words.length - 1]?.endSec ?? 0;
+    if (sceneElapsedSec > lastWordEnd + 0.45) {
+      return; // Clean background until next scene
+    }
 
     // Determine currently spoken word index
     let activeWordIndex = -1;
@@ -144,28 +153,35 @@ export const CaptionAnimator = {
         break;
       }
     }
-    // If past all words, highlight last
-    if (activeWordIndex === -1 && sceneElapsedSec > (words[words.length - 1]?.endSec || 0)) {
-      activeWordIndex = words.length - 1;
+    // If between words or in trailing pause before scene end, highlight active or last spoken
+    if (activeWordIndex === -1 && sceneElapsedSec >= firstWordStart && sceneElapsedSec <= lastWordEnd + 0.45) {
+      for (let i = words.length - 1; i >= 0; i--) {
+        if (sceneElapsedSec >= words[i].endSec) {
+          activeWordIndex = i;
+          break;
+        }
+      }
+      if (activeWordIndex === -1) activeWordIndex = 0;
     }
 
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Group words into short visual chunks (3-4 words per display chunk for fast reading)
-    const chunkSize = 3; // Fast TikTok/Shorts punchy chunk size
+    // Group words into punchy 2-3 word visual chunks for high-retention readability
+    const chunkSize = 3;
     const currentChunkIndex = activeWordIndex >= 0 ? Math.floor(activeWordIndex / chunkSize) : 0;
     const chunkWords = words.slice(currentChunkIndex * chunkSize, (currentChunkIndex + 1) * chunkSize);
 
     const centerY = canvasHeight * (yPercent / 100);
 
-    // Measure total width of chunk
-    const fontString = `${style.fontWeight} ${Math.round(fontSize)}px ${effectiveFontFamily}`;
-    ctx.font = fontString;
+    // Initial font measurement
+    let currentFontSize = fontSize;
+    const effectiveFontFamily = fontFamilyOverride ? `'${fontFamilyOverride}', ${style.fontFamily}` : style.fontFamily;
+    ctx.font = `${style.fontWeight} ${Math.round(currentFontSize)}px ${effectiveFontFamily}`;
     const wordSpacings = Math.round(18 * scale);
 
-    const measuredWords = chunkWords.map((item, localIdx) => {
+    let measuredWords = chunkWords.map((item, localIdx) => {
       const globalIdx = currentChunkIndex * chunkSize + localIdx;
       const isActive = globalIdx === activeWordIndex;
       const textToMeasure = style.uppercase ? item.word.toUpperCase() : item.word;
@@ -179,20 +195,48 @@ export const CaptionAnimator = {
       };
     });
 
-    const totalChunkWidth =
+    let totalChunkWidth =
       measuredWords.reduce((sum, w) => sum + w.width, 0) + (measuredWords.length - 1) * wordSpacings;
+
+    // MARGIN SAFETY GUARANTEE: Never exceed 84% of canvas width (leaves >= 8% margin on each side)
+    const maxSafeWidth = canvasWidth * 0.84;
+    if (totalChunkWidth > maxSafeWidth && totalChunkWidth > 0) {
+      const shrinkFactor = maxSafeWidth / totalChunkWidth;
+      currentFontSize = Math.max(Math.round(fontSize * shrinkFactor), Math.round(20 * scale));
+      ctx.font = `${style.fontWeight} ${Math.round(currentFontSize)}px ${effectiveFontFamily}`;
+
+      // Recalculate with scaled font
+      measuredWords = chunkWords.map((item, localIdx) => {
+        const globalIdx = currentChunkIndex * chunkSize + localIdx;
+        const isActive = globalIdx === activeWordIndex;
+        const textToMeasure = style.uppercase ? item.word.toUpperCase() : item.word;
+        const width = ctx.measureText(textToMeasure).width;
+        return {
+          item,
+          globalIdx,
+          isActive,
+          text: textToMeasure,
+          width,
+        };
+      });
+
+      totalChunkWidth =
+        measuredWords.reduce((sum, w) => sum + w.width, 0) + (measuredWords.length - 1) * wordSpacings;
+    }
+
+    const strokeWidth = currentFontSize * style.strokeWidthRatio;
 
     // Draw frosted glass pill or cineasta box backdrop if enabled
     if (style.hasPill) {
-      const pillPadX = 35 * scale;
-      const pillPadY = 22 * scale;
+      const pillPadX = 30 * scale;
+      const pillPadY = 18 * scale;
       ctx.fillStyle = style.pillBgColor || 'rgba(15, 23, 42, 0.7)';
       ctx.beginPath();
       ctx.roundRect(
         canvasWidth / 2 - totalChunkWidth / 2 - pillPadX,
-        centerY - fontSize * 0.7 - pillPadY / 2,
+        centerY - currentFontSize * 0.7 - pillPadY / 2,
         totalChunkWidth + pillPadX * 2,
-        fontSize * 1.4 + pillPadY,
+        currentFontSize * 1.4 + pillPadY,
         Math.max(8, 20 * scale)
       );
       ctx.fill();

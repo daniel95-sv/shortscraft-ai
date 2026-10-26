@@ -190,16 +190,21 @@ export const TTSEngine = {
     });
 
     const totalWeight = weights.reduce((acc, w) => acc + w, 0);
-    let currentStart = 0;
+
+    // Natural 0.18s audio lead-in before first syllable, and 0.4s breath tail
+    const leadInSec = 0.18;
+    const trailSec = 0.4;
+    const spokenDuration = Math.max(totalDurationSec - leadInSec - trailSec, 0.8);
+    let currentStart = leadInSec;
 
     return rawWords.map((word, idx) => {
       const fraction = weights[idx] / totalWeight;
-      const duration = totalDurationSec * fraction;
+      const duration = spokenDuration * fraction;
       const wordObj = {
         word: word.trim(),
         cleanWord: word.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ]/g, ''),
-        startSec: currentStart,
-        endSec: currentStart + duration,
+        startSec: Math.round(currentStart * 100) / 100,
+        endSec: Math.round((currentStart + duration) * 100) / 100,
       };
       currentStart += duration;
       return wordObj;
