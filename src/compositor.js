@@ -50,6 +50,7 @@ export const Compositor = {
   fontSize: 54,
   captionYPercent: 70,
   showProgressBar: true,
+  showCaptions: true, // Activado por defecto para mostrar el texto de la historia en el video
   customColors: null,
 
   // Listeners
@@ -423,11 +424,13 @@ export const Compositor = {
     // 1. LAYER: Seamless Crossfading Background (video, image, or procedural FX)
     this.drawBackground(ctx, w, h, timeSec, currentScene);
 
-    // 2. LAYER: Cinematic Lower-Third Gradient Contrast
-    this.drawContrastOverlay(ctx, w, h);
+    // 2. LAYER: Cinematic Lower-Third Gradient Contrast (solo cuando los subtítulos están activos)
+    if (this.showCaptions) {
+      this.drawContrastOverlay(ctx, w, h);
+    }
 
     // 3. LAYER: Full-Sentence Kinetic Captions (Always complete, word karaoke synced)
-    if (currentScene && currentScene.words) {
+    if (this.showCaptions && currentScene && currentScene.words) {
       const activeWordIdx = (this.activeSpeechSceneIndex === info?.sceneIndex && this.activeSpeechWordIndex >= 0)
         ? this.activeSpeechWordIndex
         : -1;

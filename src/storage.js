@@ -61,6 +61,7 @@ export const StorageManager = {
         uppercase: true,
         bgMotion: 'cyber-grid',
         showProgressBar: true,
+        showCaptions: true,
       };
     } catch (e) {
       console.warn('Failed to read settings', e);

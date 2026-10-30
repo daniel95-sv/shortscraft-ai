@@ -41,6 +41,7 @@ class AppController {
     Compositor.fontSize = this.settings.fontSize || 58;
     Compositor.bgType = this.settings.bgMotion || 'cyber-grid';
     Compositor.showProgressBar = this.settings.showProgressBar ?? true;
+    Compositor.showCaptions = this.settings.showCaptions ?? true;
     Compositor.paddingBackSec = this.paddingBackMs / 1000;
     Compositor.setOrientation(this.orientation);
 
@@ -1154,6 +1155,22 @@ class AppController {
     checkProgressBar?.addEventListener('change', (e) => {
       Compositor.showProgressBar = e.target.checked;
       Compositor.requestRender();
+    });
+
+    const checkShowCaptions = document.getElementById('checkShowCaptions');
+    if (checkShowCaptions) {
+      checkShowCaptions.checked = Compositor.showCaptions ?? true;
+    }
+    checkShowCaptions?.addEventListener('change', (e) => {
+      Compositor.showCaptions = e.target.checked;
+      this.settings.showCaptions = e.target.checked;
+      StorageManager.saveSettings(this.settings);
+      Compositor.requestRender();
+      this.showToast(
+        e.target.checked ? 'Texto de la historia activado en el video' : 'Texto de la historia oculto en el video',
+        'info',
+        2000
+      );
     });
 
     // 13. Audio Controls: Voice, Rate, Volume, Music Mood, Custom Music
