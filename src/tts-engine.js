@@ -11,6 +11,7 @@ export const TTSEngine = {
   voices: [],
   synth: typeof window !== 'undefined' ? window.speechSynthesis : null,
   currentUtterance: null,
+  isSpeaking: false,
 
   // ElevenLabs State & Cache
   elevenLabsVoices: [],
@@ -162,8 +163,8 @@ export const TTSEngine = {
       });
 
       if (buffer && buffer.duration) {
-        // Adapt scene duration comfortably to spoken audio length (+ 0.6s tail)
-        const naturalDuration = Math.max(Math.round((buffer.duration + 0.6) * 10) / 10, 2.0);
+        // Adapt scene duration comfortably to spoken audio length (+ 0.35s natural breath cushion)
+        const naturalDuration = Math.max(Math.round((buffer.duration + 0.35) * 10) / 10, 2.0);
         scene.durationSec = naturalDuration;
         scene.words = this.calculateWordTimestamps(scene.text, scene.durationSec);
       }
@@ -184,16 +185,16 @@ export const TTSEngine = {
     // Calculate relative weights based on word length + punctuation pauses
     const weights = rawWords.map((word) => {
       let len = word.length;
-      if (/[,;]/.test(word)) len += 2.0; // Short comma pause
-      if (/[.?!:]/.test(word)) len += 3.5; // Sentence end pause
+      if (/[,;]/.test(word)) len += 1.8; // Short comma pause
+      if (/[.?!:]/.test(word)) len += 3.0; // Sentence end pause
       return Math.max(len, 2);
     });
 
     const totalWeight = weights.reduce((acc, w) => acc + w, 0);
 
-    // Natural 0.10s audio lead-in before first syllable, and 0.25s breath tail
-    const leadInSec = 0.10;
-    const trailSec = 0.25;
+    // Natural 0.08s lead-in before first syllable, and 0.20s breath tail
+    const leadInSec = 0.08;
+    const trailSec = 0.20;
     const spokenDuration = Math.max(totalDurationSec - leadInSec - trailSec, 0.6);
     let currentStart = leadInSec;
     let searchPos = 0;
@@ -228,21 +229,21 @@ export const TTSEngine = {
     if (!text || !text.trim()) return 2.2;
     const clean = text.trim();
 
-    // Average speech rate in Spanish/multilingual text: ~14.2 characters per second at 1.0x rate
+    // Average speech rate in Spanish/multilingual text: ~14.8 characters per second at 1.0x rate
     const effectiveRate = Math.max(0.7, Math.min(rate || 1.15, 2.0));
-    const charsPerSec = 14.2 * effectiveRate;
+    const charsPerSec = 14.8 * effectiveRate;
     const baseSec = clean.length / charsPerSec;
 
     // Punctuation pauses
     const commas = (clean.match(/[,;:]/g) || []).length;
     const periods = (clean.match(/[.?!]/g) || []).length;
-    const pauseSec = commas * 0.18 + periods * 0.32;
+    const pauseSec = commas * 0.16 + periods * 0.28;
 
     // Natural lead-in and gentle breath cushion before next scene
-    const leadAndTrail = 0.38;
+    const leadAndTrail = 0.32;
 
     const total = baseSec + pauseSec + leadAndTrail;
-    return Math.max(Math.round(total * 10) / 10, 2.2);
+    return Math.max(Math.round(total * 10) / 10, 2.0);
   },
 
   /**
@@ -276,7 +277,11 @@ export const TTSEngine = {
       }
 
       if (buffer) {
-        AudioMixer.playSpeechBuffer(buffer, onEnd);
+        this.isSpeaking = true;
+        AudioMixer.playSpeechBuffer(buffer, () => {
+          this.isSpeaking = false;
+          if (onEnd) onEnd();
+        });
         return;
       }
       // If ElevenLabs failed or offline, fall through smoothly to native Web Speech API
@@ -288,6 +293,15 @@ export const TTSEngine = {
       return;
     }
 
+    // Workaround for Chromium Web Speech API bugs: ensure synth is resumed and clear
+    if (this.synth.paused) {
+      this.synth.resume();
+    }
+    this.synth.cancel();
+
+    // Micro-delay to let browser speech synthesis reset properly
+    await new Promise((r) => setTimeout(r, 20));
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = Math.max(0.7, Math.min(rate, 2.0));
     utterance.pitch = Math.max(0.5, Math.min(pitch, 1.5));
@@ -297,33 +311,48 @@ export const TTSEngine = {
       if (selected) utterance.voice = selected;
     }
 
+    this.isSpeaking = true;
+
     if (onBoundary) {
       utterance.onboundary = (event) => {
         onBoundary(event);
       };
     }
 
-    if (onEnd) {
-      utterance.onend = () => {
-        this.currentUtterance = null;
-        onEnd();
-      };
-      utterance.onerror = () => {
-        this.currentUtterance = null;
-        onEnd();
-      };
-    }
+    const finishHandler = () => {
+      this.isSpeaking = false;
+      this.currentUtterance = null;
+      if (onEnd) onEnd();
+    };
+
+    utterance.onend = finishHandler;
+    utterance.onerror = (e) => {
+      // Ignore normal user cancellations
+      if (e.error !== 'interrupted' && e.error !== 'canceled') {
+        console.warn('SpeechSynthesis error:', e.error);
+      }
+      finishHandler();
+    };
 
     this.currentUtterance = utterance;
     this.synth.speak(utterance);
+
+    // Chrome audio engine keepalive: in long texts, Chrome can pause speech after 14s
+    if (this.synth.paused) {
+      this.synth.resume();
+    }
   },
 
   /**
    * Stops current playback from both native TTS and AudioMixer speech buffer.
    */
   stop() {
+    this.isSpeaking = false;
     if (this.synth) {
       try {
+        if (this.synth.paused) {
+          this.synth.resume();
+        }
         this.synth.cancel();
       } catch (e) {}
       this.currentUtterance = null;

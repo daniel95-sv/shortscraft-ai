@@ -1,9 +1,13 @@
 /**
- * Caption Animator
- * Renders viral word-by-word kinetic subtitles directly onto the 9:16 Canvas.
- * Supports Alex Hormozi style, MrBeast pop style, TikTok Neon, Clean Minimal, and Cyberpunk.
+ * Caption Animator - Viral Kinetic Subtitle Engine
+ * Renders full-sentence viral subtitles directly onto the Canvas (9:16 vertical & 16:9 horizontal).
  * 
- * Optimized for high performance and fluid 60 FPS rendering.
+ * Features:
+ * - Full-sentence display: Shows the complete text of each scene so text never vanishes prematurely.
+ * - Dynamic word-by-word kinetic karaoke highlighting synchronized to speech.
+ * - Balanced multi-line word wrapping with margin safety guarantees (zero text truncation or overflow).
+ * - Calibrated font & letter spacing so characters never touch or overlap.
+ * - Viral presets: Alex Hormozi (Bold Pop), MrBeast (Punchy Badge), TikTok Neon, Clean Glass, Fuego Viral, Cineasta Box, Cyberpunk.
  */
 
 export const CaptionAnimator = {
@@ -15,27 +19,27 @@ export const CaptionAnimator = {
       activeColor: '#FACC15', // Vibrant yellow
       textColor: '#FFFFFF',
       strokeColor: '#000000',
-      strokeWidthRatio: 0.11, // Calibrated so letters stay crisp without overlapping
-      scaleActive: 1.15,
+      strokeWidthRatio: 0.12,
+      scaleActive: 1.12,
       uppercase: true,
-      shadowBlur: 6,
-      shadowColor: 'rgba(0, 0, 0, 0.8)',
+      shadowBlur: 8,
+      shadowColor: 'rgba(0, 0, 0, 0.9)',
     },
 
     mrbeast: {
       name: '💥 MrBeast (Punchy Slant & Badge)',
       fontFamily: "'Outfit', 'Impact', sans-serif",
       fontWeight: '900',
-      activeColor: '#38BDF8', // Cyan
+      activeColor: '#FFFFFF',
       textColor: '#FFFFFF',
       strokeColor: '#000000',
       strokeWidthRatio: 0.12,
-      scaleActive: 1.16,
+      scaleActive: 1.10,
       uppercase: true,
       hasBadge: true,
-      badgeColor: '#E11D48', // Vibrant red
+      badgeColor: '#E11D48', // Red badge for active word
       shadowBlur: 8,
-      shadowColor: 'rgba(0,0,0,0.9)',
+      shadowColor: 'rgba(0, 0, 0, 0.9)',
     },
 
     neon: {
@@ -45,10 +49,10 @@ export const CaptionAnimator = {
       activeColor: '#22D3EE', // Electric cyan
       textColor: '#F8FAFC',
       strokeColor: '#0F172A',
-      strokeWidthRatio: 0.08,
-      scaleActive: 1.12,
+      strokeWidthRatio: 0.09,
+      scaleActive: 1.10,
       uppercase: true,
-      shadowBlur: 10,
+      shadowBlur: 14,
       shadowColor: '#06B6D4',
     },
 
@@ -58,27 +62,27 @@ export const CaptionAnimator = {
       fontWeight: '700',
       activeColor: '#60A5FA',
       textColor: '#FFFFFF',
-      strokeColor: 'rgba(0, 0, 0, 0.6)',
-      strokeWidthRatio: 0.06,
-      scaleActive: 1.08,
+      strokeColor: 'rgba(0, 0, 0, 0.65)',
+      strokeWidthRatio: 0.07,
+      scaleActive: 1.06,
       uppercase: false,
       hasPill: true,
       shadowBlur: 4,
-      shadowColor: 'rgba(0, 0, 0, 0.5)',
+      shadowColor: 'rgba(0, 0, 0, 0.6)',
     },
 
     fire: {
       name: '🔥 Fuego Rojo / Naranja Viral',
       fontFamily: "'Anton', 'Montserrat', sans-serif",
       fontWeight: '900',
-      activeColor: '#FF3B00',
+      activeColor: '#FF4500', // Neon Orange-Red
       textColor: '#FFFFFF',
       strokeColor: '#000000',
-      strokeWidthRatio: 0.11,
-      scaleActive: 1.15,
+      strokeWidthRatio: 0.12,
+      scaleActive: 1.12,
       uppercase: true,
-      shadowBlur: 18,
-      shadowColor: '#FF5500',
+      shadowBlur: 16,
+      shadowColor: '#FF3300',
     },
 
     box: {
@@ -89,10 +93,10 @@ export const CaptionAnimator = {
       textColor: '#FFFFFF',
       strokeColor: '#000000',
       strokeWidthRatio: 0.10,
-      scaleActive: 1.10,
+      scaleActive: 1.08,
       uppercase: true,
       hasPill: true,
-      pillBgColor: 'rgba(0, 0, 0, 0.88)',
+      pillBgColor: 'rgba(0, 0, 0, 0.86)',
       pillBorderColor: 'rgba(255, 255, 255, 0.15)',
     },
 
@@ -104,15 +108,15 @@ export const CaptionAnimator = {
       textColor: '#F3F4F6',
       strokeColor: '#1E1B4B',
       strokeWidthRatio: 0.10,
-      scaleActive: 1.14,
+      scaleActive: 1.10,
       uppercase: true,
-      shadowBlur: 8,
+      shadowBlur: 10,
       shadowColor: '#10B981',
     },
   },
 
   /**
-   * Draws kinetic captions for current scene and elapsed time
+   * Draws full-scene captions with live word-level highlight on Canvas
    */
   drawCaptions({
     ctx,
@@ -120,26 +124,22 @@ export const CaptionAnimator = {
     canvasHeight,
     words,
     sceneElapsedSec,
+    sceneDurationSec = 5.0,
     styleKey = 'hormozi',
     fontSize = 58,
     yPercent = 70, // 70% from top (ideal 9:16 Shorts viewing zone)
     customColors = null,
     fontFamilyOverride = null,
     activeWordIndexOverride = -1,
+    opacity = 1.0,
   }) {
-    if (!words || words.length === 0) return;
+    if (!words || words.length === 0 || opacity <= 0.01) return;
 
     const style = this.styles[styleKey] || this.styles.hormozi;
     const activeColor = customColors?.highlightColor || style.activeColor;
     const primaryColor = customColors?.primaryColor || style.textColor;
     const strokeColor = customColors?.strokeColor || style.strokeColor;
     const scale = canvasWidth / 1080;
-
-    // 1. SYNCHRONIZATION: Only hold before first word if no active boundary is currently speaking
-    const firstWordStart = words[0]?.startSec ?? 0;
-    if (activeWordIndexOverride < 0 && sceneElapsedSec < Math.max(0, firstWordStart - 0.05)) {
-      return; // Clean canvas before audio starts
-    }
 
     // Determine currently spoken word index
     let activeWordIndex = -1;
@@ -152,108 +152,105 @@ export const CaptionAnimator = {
           break;
         }
       }
-      // If between words or in trailing pause before scene end, highlight active or last spoken
-      if (activeWordIndex === -1 && sceneElapsedSec >= firstWordStart) {
-        for (let i = words.length - 1; i >= 0; i--) {
-          if (sceneElapsedSec >= words[i].endSec) {
-            activeWordIndex = i;
-            break;
-          }
-        }
-        if (activeWordIndex === -1) activeWordIndex = 0;
+      // If past all word timestamps, highlight last word or keep active state
+      if (activeWordIndex === -1 && sceneElapsedSec >= (words[0]?.startSec ?? 0)) {
+        activeWordIndex = words.length - 1;
       }
     }
 
     ctx.save();
+    ctx.globalAlpha = Math.min(1.0, Math.max(0.0, opacity));
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Group words into punchy 2-3 word visual chunks for high-retention readability
-    const chunkSize = 3;
-    const currentChunkIndex = activeWordIndex >= 0 ? Math.floor(activeWordIndex / chunkSize) : 0;
-    const chunkWords = words.slice(currentChunkIndex * chunkSize, (currentChunkIndex + 1) * chunkSize);
-
-    const centerY = canvasHeight * (yPercent / 100);
-
-    // Initial font measurement
-    let currentFontSize = fontSize;
     const effectiveFontFamily = fontFamilyOverride ? `'${fontFamilyOverride}', ${style.fontFamily}` : style.fontFamily;
-    ctx.font = `${style.fontWeight} ${Math.round(currentFontSize)}px ${effectiveFontFamily}`;
+    const maxSafeLineWidth = canvasWidth * 0.86; // Never exceed 86% of screen width
 
-    // Generous letter spacing so letters in condensed fonts (like Anton/Montserrat) never touch or overlap
-    const letterSpacingPx = Math.max(2, Math.round(currentFontSize * 0.045));
-    if ('letterSpacing' in ctx) {
-      ctx.letterSpacing = `${letterSpacingPx}px`;
-    }
+    // Compute optimal font size for complete scene display
+    let currentFontSize = Math.round(fontSize);
+    let lines = [];
+    let lineMeasurements = [];
 
-    // Proportional word spacing + clearance buffer for the active word pop-in scale animation
-    const scaleFactor = style.scaleActive || 1.15;
-    const baseWordSpacing = Math.round(currentFontSize * 0.42);
-    const activeExpansionClearance = Math.round(currentFontSize * (scaleFactor - 1.0) * 0.85);
-    const wordSpacings = baseWordSpacing + activeExpansionClearance;
-
-    let measuredWords = chunkWords.map((item, localIdx) => {
-      const globalIdx = currentChunkIndex * chunkSize + localIdx;
-      const isActive = globalIdx === activeWordIndex;
-      const textToMeasure = style.uppercase ? item.word.toUpperCase() : item.word;
-      const width = ctx.measureText(textToMeasure).width;
-      return {
-        item,
-        globalIdx,
-        isActive,
-        text: textToMeasure,
-        width,
-      };
-    });
-
-    let totalChunkWidth =
-      measuredWords.reduce((sum, w) => sum + w.width, 0) + (measuredWords.length - 1) * wordSpacings;
-
-    // MARGIN SAFETY GUARANTEE: Never exceed 86% of canvas width (leaves >= 7% margin on each side)
-    const maxSafeWidth = canvasWidth * 0.86;
-    if (totalChunkWidth > maxSafeWidth && totalChunkWidth > 0) {
-      const shrinkFactor = maxSafeWidth / totalChunkWidth;
-      currentFontSize = Math.max(Math.round(fontSize * shrinkFactor), Math.round(18 * scale));
-      ctx.font = `${style.fontWeight} ${Math.round(currentFontSize)}px ${effectiveFontFamily}`;
+    // Layout algorithm: split words into 1, 2, or at most 3 balanced lines
+    const computeLines = (fSize) => {
+      ctx.font = `${style.fontWeight} ${fSize}px ${effectiveFontFamily}`;
+      const letterSpacingPx = Math.max(1, Math.round(fSize * 0.035));
       if ('letterSpacing' in ctx) {
-        ctx.letterSpacing = `${Math.max(1, Math.round(currentFontSize * 0.04))}px`;
+        ctx.letterSpacing = `${letterSpacingPx}px`;
       }
 
-      // Recalculate with scaled font
-      measuredWords = chunkWords.map((item, localIdx) => {
-        const globalIdx = currentChunkIndex * chunkSize + localIdx;
-        const isActive = globalIdx === activeWordIndex;
-        const textToMeasure = style.uppercase ? item.word.toUpperCase() : item.word;
-        const width = ctx.measureText(textToMeasure).width;
+      const wordSpacing = Math.round(fSize * 0.38);
+      const measured = words.map((item, idx) => {
+        const text = style.uppercase ? item.word.toUpperCase() : item.word;
+        const width = ctx.measureText(text).width;
         return {
+          idx,
           item,
-          globalIdx,
-          isActive,
-          text: textToMeasure,
+          text,
           width,
+          isActive: idx === activeWordIndex,
         };
       });
 
-      totalChunkWidth =
-        measuredWords.reduce((sum, w) => sum + w.width, 0) + (measuredWords.length - 1) * wordSpacings;
+      // Wrap words into lines
+      const wrappedLines = [];
+      let currentLine = [];
+      let currentLineWidth = 0;
+
+      for (const mWord of measured) {
+        const neededWidth = currentLine.length === 0 ? mWord.width : currentLineWidth + wordSpacing + mWord.width;
+        if (neededWidth > maxSafeLineWidth && currentLine.length > 0) {
+          wrappedLines.push(currentLine);
+          currentLine = [mWord];
+          currentLineWidth = mWord.width;
+        } else {
+          currentLine.push(mWord);
+          currentLineWidth = neededWidth;
+        }
+      }
+      if (currentLine.length > 0) {
+        wrappedLines.push(currentLine);
+      }
+
+      return { wrappedLines, wordSpacing };
+    };
+
+    // Auto-scale font size if text exceeds 3 lines or is too large
+    let layout = computeLines(currentFontSize);
+    while (layout.wrappedLines.length > 3 && currentFontSize > 22 * scale) {
+      currentFontSize = Math.round(currentFontSize * 0.90);
+      layout = computeLines(currentFontSize);
     }
 
-    const strokeWidth = currentFontSize * (style.strokeWidthRatio || 0.11);
+    lines = layout.wrappedLines;
+    const wordSpacing = layout.wordSpacing;
+    const lineHeight = Math.round(currentFontSize * 1.30);
+    const totalBlockHeight = lines.length * lineHeight;
+    const centerY = canvasHeight * (yPercent / 100);
+    const startY = centerY - totalBlockHeight / 2 + lineHeight / 2;
 
-    // Draw frosted glass pill or cineasta box backdrop if enabled
+    const strokeWidth = Math.max(2, currentFontSize * (style.strokeWidthRatio || 0.12));
+
+    // Optional background pill or cinema box
     if (style.hasPill) {
-      const pillPadX = 30 * scale;
-      const pillPadY = 18 * scale;
-      ctx.fillStyle = style.pillBgColor || 'rgba(15, 23, 42, 0.7)';
+      let maxLineWidth = 0;
+      lines.forEach((line) => {
+        const w = line.reduce((acc, m) => acc + m.width, 0) + (line.length - 1) * wordSpacing;
+        if (w > maxLineWidth) maxLineWidth = w;
+      });
+
+      const padX = Math.round(30 * scale);
+      const padY = Math.round(18 * scale);
+      const boxW = maxLineWidth + padX * 2;
+      const boxH = totalBlockHeight + padY * 2;
+      const boxX = canvasWidth / 2 - boxW / 2;
+      const boxY = centerY - boxH / 2;
+
+      ctx.fillStyle = style.pillBgColor || 'rgba(15, 23, 42, 0.75)';
       ctx.beginPath();
-      ctx.roundRect(
-        canvasWidth / 2 - totalChunkWidth / 2 - pillPadX,
-        centerY - currentFontSize * 0.7 - pillPadY / 2,
-        totalChunkWidth + pillPadX * 2,
-        currentFontSize * 1.4 + pillPadY,
-        Math.max(8, 20 * scale)
-      );
+      ctx.roundRect(boxX, boxY, boxW, boxH, Math.max(8, 16 * scale));
       ctx.fill();
+
       if (style.pillBorderColor) {
         ctx.strokeStyle = style.pillBorderColor;
         ctx.lineWidth = 1.5;
@@ -261,47 +258,58 @@ export const CaptionAnimator = {
       }
     }
 
-    // Render each word
-    let startX = canvasWidth / 2 - totalChunkWidth / 2;
+    // Render each line and its words
+    lines.forEach((line, lineIdx) => {
+      const lineY = startY + lineIdx * lineHeight;
+      const totalLineWidth = line.reduce((acc, m) => acc + m.width, 0) + (line.length - 1) * wordSpacing;
+      let startX = canvasWidth / 2 - totalLineWidth / 2;
 
-    measuredWords.forEach(({ text, isActive, width }) => {
-      const wordCenterX = startX + width / 2;
+      line.forEach(({ text, isActive, width }) => {
+        const wordCenterX = startX + width / 2;
 
-      ctx.save();
-      ctx.translate(wordCenterX, centerY);
+        ctx.save();
+        ctx.translate(wordCenterX, lineY);
 
-      // Pop-in scale animation for active word
-      if (isActive) {
-        ctx.scale(style.scaleActive, style.scaleActive);
-        if (style.shadowBlur) {
-          ctx.shadowBlur = style.shadowBlur;
-          ctx.shadowColor = style.shadowColor || 'rgba(0, 0, 0, 0.8)';
+        // Kinetic scale and glow on the active spoken word
+        if (isActive) {
+          ctx.scale(style.scaleActive, style.scaleActive);
+          if (style.shadowBlur) {
+            ctx.shadowBlur = style.shadowBlur;
+            ctx.shadowColor = style.shadowColor || 'rgba(0, 0, 0, 0.9)';
+          }
+        } else {
+          ctx.shadowBlur = Math.round(4 * scale);
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
         }
-      } else {
-        ctx.shadowBlur = 0;
-      }
 
-      // Active badge background for MrBeast style
-      if (isActive && style.hasBadge) {
-        ctx.fillStyle = style.badgeColor;
-        ctx.beginPath();
-        ctx.roundRect(-width / 2 - 12 * scale, -fontSize * 0.65, width + 24 * scale, fontSize * 1.3, 10 * scale);
-        ctx.fill();
-      }
+        // Active badge background for MrBeast style
+        if (isActive && style.hasBadge) {
+          ctx.fillStyle = style.badgeColor || '#E11D48';
+          ctx.beginPath();
+          ctx.roundRect(
+            -width / 2 - 8 * scale,
+            -currentFontSize * 0.58,
+            width + 16 * scale,
+            currentFontSize * 1.16,
+            8 * scale
+          );
+          ctx.fill();
+        }
 
-      // Draw stroke
-      ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = strokeWidth;
-      ctx.lineJoin = 'round';
-      ctx.miterLimit = 2;
-      ctx.strokeText(text, 0, 0);
+        // Draw dark outline
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = strokeWidth;
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+        ctx.strokeText(text, 0, 0);
 
-      // Draw fill
-      ctx.fillStyle = isActive ? activeColor : primaryColor;
-      ctx.fillText(text, 0, 0);
+        // Draw text fill
+        ctx.fillStyle = isActive ? activeColor : primaryColor;
+        ctx.fillText(text, 0, 0);
 
-      ctx.restore();
-      startX += width + wordSpacings;
+        ctx.restore();
+        startX += width + wordSpacing;
+      });
     });
 
     if ('letterSpacing' in ctx) {

@@ -478,7 +478,7 @@ class AppController {
 
     Compositor.onTimeUpdate = (currentSec, totalSec) => {
       this.updateTimeDisplay(currentSec, totalSec);
-      if (totalSec > 0) {
+      if (totalSec > 0 && timelineSlider) {
         timelineSlider.value = (currentSec / totalSec) * 100;
       }
     };
@@ -494,9 +494,15 @@ class AppController {
       this.updatePlayPauseButton(false);
     };
 
-    // Phone screen click to toggle play
+    Compositor.onPlayStateChange = (isPlaying) => {
+      this.updatePlayPauseButton(isPlaying);
+    };
+
+    // Phone screen click to toggle play (only when clicking canvas/video, not controls)
     phoneScreen?.addEventListener('click', (e) => {
-      if (e.target.tagName === 'VIDEO') return;
+      if (e.target.closest('#timelineSlider, .timeline-controls-bar, button, input, label')) {
+        return;
+      }
       this.togglePlayPause();
     });
 
@@ -524,7 +530,6 @@ class AppController {
   togglePlayPause() {
     if (Compositor.isPlaying) {
       Compositor.pause();
-      this.updatePlayPauseButton(false);
     } else {
       // Hide server video player if visible
       const serverPlayer = document.getElementById('serverVideoPlayer');
@@ -533,7 +538,6 @@ class AppController {
         document.getElementById('shortsCanvas').style.display = 'block';
       }
       Compositor.play();
-      this.updatePlayPauseButton(true);
     }
   }
 
@@ -1008,6 +1012,8 @@ class AppController {
     // 10. Generate with AI Button
     const btnGenerate = document.getElementById('btnGenerateScript');
     btnGenerate?.addEventListener('click', async () => {
+      if (this.isGeneratingScript) return;
+
       const topic = document.getElementById('topicInput').value.trim();
       let provider = document.getElementById('aiProviderSelect').value;
       const language = document.getElementById('languageSelect').value;
@@ -1025,11 +1031,32 @@ class AppController {
       if (provider === 'openai') apiKey = this.apiKeys.openai;
       if (provider === 'groq') apiKey = this.apiKeys.groq;
 
+      this.isGeneratingScript = true;
       btnGenerate.disabled = true;
+      btnGenerate.classList.add('btn-generating');
+
+      const progressBox = document.getElementById('aiGenerationProgressBox');
+      const progressText = document.getElementById('aiProgressStatusText');
+      const progressBar = document.getElementById('aiProgressBarFill');
+
+      if (progressBox) progressBox.style.display = 'flex';
+      if (progressBar) progressBar.style.width = '25%';
+      if (progressText) progressText.textContent = '🧠 Conectando con IA y analizando el tema...';
+
       btnGenerate.innerHTML = `
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
         <span>Creando Guión & Sincronizando...</span>
       `;
+
+      const stepTimer1 = setTimeout(() => {
+        if (progressBar) progressBar.style.width = '60%';
+        if (progressText) progressText.textContent = '✨ Escribiendo guión y ganchos de alta retención...';
+      }, 800);
+
+      const stepTimer2 = setTimeout(() => {
+        if (progressBar) progressBar.style.width = '85%';
+        if (progressText) progressText.textContent = '⏱️ Calibrando cadencia de voz y palabras clave...';
+      }, 2000);
 
       try {
         const generated = await AIEngine.generateScript({
@@ -1040,6 +1067,11 @@ class AppController {
           language,
           orientation: this.orientation || Compositor.orientation || 'portrait',
         });
+
+        clearTimeout(stepTimer1);
+        clearTimeout(stepTimer2);
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressText) progressText.textContent = '🎬 Integrando escenas en el estudio...';
 
         this.setProject(generated);
 
@@ -1058,9 +1090,18 @@ class AppController {
           if (scenesTabBtn) scenesTabBtn.click();
         }
       } catch (err) {
+        clearTimeout(stepTimer1);
+        clearTimeout(stepTimer2);
         this.showToast(`Error al generar guión: ${err.message}`, 'error', 5000);
       } finally {
+        this.isGeneratingScript = false;
         btnGenerate.disabled = false;
+        btnGenerate.classList.remove('btn-generating');
+        if (progressBox) {
+          setTimeout(() => {
+            progressBox.style.display = 'none';
+          }, 800);
+        }
         btnGenerate.innerHTML = `
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
           <span>Crear Guión & Generar Short</span>
@@ -1560,20 +1601,27 @@ class AppController {
     const closeExportBtn = document.getElementById('btnCloseExportModal');
     const modalTitle = document.getElementById('exportModalTitle');
 
-    const closeExport = () => {
+    const cancelExport = () => {
       if (this.serverAbortController) {
         this.serverAbortController.abort();
       }
       VideoExporter.cancelExport();
       exportModal.classList.remove('open');
-      this.showToast('Ventana de exportación cerrada', 'info', 2000);
+      this.showToast('Exportación cancelada', 'info', 2000);
     };
 
-    closeExportBtn?.addEventListener('click', closeExport);
+    const minimizeExport = () => {
+      exportModal.classList.remove('open');
+      if (VideoExporter.isExporting) {
+        this.showToast('Exportación continuando en segundo plano...', 'info', 3000);
+      }
+    };
+
+    closeExportBtn?.addEventListener('click', minimizeExport);
 
     exportModal?.addEventListener('click', (e) => {
       if (e.target === exportModal && successBox.style.display !== 'none') {
-        closeExport();
+        exportModal.classList.remove('open');
       }
     });
 
@@ -1589,14 +1637,14 @@ class AppController {
       fillBar.style.width = '0%';
       percentDisplay.textContent = '0%';
       if (btnCancel) btnCancel.textContent = 'Cancelar';
-      if (modalTitle) modalTitle.textContent = 'Renderizando Video 1080p...';
-      this.showToast('Compilando video HD 1080p con audio sincronizado...', 'info', 3000);
+      if (modalTitle) modalTitle.textContent = 'Renderizando Video 60 FPS...';
+      this.showToast('Compilando video en segundo plano sin bloquear tu pantalla...', 'info', 3000);
 
       VideoExporter.exportVideo({
         onProgress: ({ percent, currentSec, totalSec, status }) => {
           fillBar.style.width = `${percent}%`;
           percentDisplay.textContent = `${percent}%`;
-          timeDisplay.textContent = status || `${currentSec.toFixed(1)}s / ${totalSec.toFixed(1)}s`;
+          timeDisplay.textContent = status || `${currentSec.toFixed(1)}s / ${totalSec.toFixed(1)}s (${percent}%)`;
         },
         onComplete: ({ downloadUrl, filename, blob }) => {
           // Automatic trigger
@@ -1636,7 +1684,13 @@ class AppController {
 
     btnExport?.addEventListener('click', startExport);
     btnHeaderExport?.addEventListener('click', startExport);
-    btnCancel?.addEventListener('click', closeExport);
+    btnCancel?.addEventListener('click', () => {
+      if (successBox.style.display !== 'none') {
+        exportModal.classList.remove('open');
+      } else {
+        cancelExport();
+      }
+    });
   }
 }
 
