@@ -18,13 +18,13 @@
   width: 100%;
   max-width: min(360px, 100%);
   aspect-ratio: 9 / 16;
-  background: #000000;
+  background: #020408;
   border-radius: 36px;
   padding: 10px;
   box-shadow: 
-    0 25px 60px -15px rgba(0, 0, 0, 0.9),
-    0 0 0 2px rgba(255, 255, 255, 0.1),
-    0 0 35px -5px rgba(139, 92, 246, 0.25);
+    0 25px 60px -15px rgba(0, 0, 0, 0.95),
+    0 0 0 2px rgba(255, 255, 255, 0.12),
+    0 0 40px -5px rgba(245, 158, 11, 0.2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -458,4 +458,68 @@
   background: rgba(244, 63, 94, 0.3);
   color: #ffffff;
 }
+
+/* Safe-Zone Platform Overlay Guides */
+.safe-zone-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 25;
+  transition: opacity 0.25s ease;
+}
+
+.safe-zone-overlay.overlay-hidden {
+  opacity: 0;
+  display: none;
+}
+
+.safe-zone-overlay.overlay-visible {
+  opacity: 1;
+  display: block;
+}
+
+/* Safe Zone Platform Guide Toolbar */
+.platform-guide-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: min(360px, 100%);
+  margin: 0 auto;
+  padding: 6px 14px;
+  background: rgba(15, 20, 34, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+}
+
+.guide-pill-group {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-guide-pill {
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-guide-pill:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-guide-pill.active {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
 

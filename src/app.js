@@ -261,14 +261,17 @@ class AppController {
         ? scene.searchTerms.join(', ')
         : (scene.keyword || 'cosmos, galaxy');
 
+      const stageName = idx === 0 ? 'Hook Viral' : (idx === totalScenes - 1 ? 'Clímax & CTA' : (idx <= 2 ? 'Desarrollo' : 'Revelación'));
+
       card.innerHTML = `
         <div class="scene-header">
           <div class="scene-badge-row">
             <span class="scene-badge">Escena #${idx + 1}</span>
+            <span style="font-size: 0.68rem; font-weight: 800; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: #cbd5e1;">${stageName}</span>
             <div class="scene-duration-input">
-              <label>Duración:</label>
+              <label>⏱️</label>
               <input type="number" step="0.5" min="1.5" max="15" value="${scene.durationSec}" class="input-duration scene-duration-field">
-              <span>seg</span>
+              <span>s</span>
             </div>
           </div>
           <div class="scene-actions">
@@ -286,7 +289,7 @@ class AppController {
         <textarea class="scene-textarea" rows="2" placeholder="Escribe la narración para esta escena...">${scene.text}</textarea>
 
         <div class="scene-terms-row">
-          <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted);">Pexels:</span>
+          <span style="font-size: 0.72rem; font-weight: 800; color: #f59e0b; font-family: monospace;">B-ROLL:</span>
           <input type="text" class="scene-terms-input" value="${termsList}" placeholder="ej. space, planet, stars">
           <button class="btn-step btn-fetch-scene-broll" title="Buscar clip Pexels para esta escena">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -295,7 +298,7 @@ class AppController {
 
         <div class="scene-footer">
           <div class="scene-media-status">
-            ${MediaService.getCustomMedia(scene.id) ? '<span style="color: #10b981; font-size: 0.75rem; font-weight: 700;">✓ Clip Activo</span>' : '<span style="color: var(--text-muted); font-size: 0.75rem;">Fondo Procedural HD</span>'}
+            ${MediaService.getCustomMedia(scene.id) ? '<span style="color: #34d399; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 4px;"><span>✓</span> <span>Clip Pexels/Video Activo</span></span>' : '<span style="color: var(--text-muted); font-size: 0.75rem;">Fondo Procedural 60 FPS</span>'}
           </div>
 
           <div class="scene-media-controls">
@@ -909,6 +912,44 @@ class AppController {
 
     // 3. Orientation Toggle
     document.getElementById('btnToggleOrientation')?.addEventListener('click', () => this.toggleOrientation());
+
+    // 3b. Platform Safe-Zone Guides Toolbar (Limpio, TikTok, Reels)
+    const safeOverlay = document.getElementById('phoneSafeZoneOverlay');
+    const btnGuideNone = document.getElementById('btnGuideNone');
+    const btnGuideTikTok = document.getElementById('btnGuideTikTok');
+    const btnGuideReels = document.getElementById('btnGuideReels');
+    const safeZoneHeaderLeft = document.getElementById('safeZoneHeaderLeft');
+    const safeZoneHeaderRight = document.getElementById('safeZoneHeaderRight');
+
+    const setPlatformGuide = (platform) => {
+      [btnGuideNone, btnGuideTikTok, btnGuideReels].forEach((b) => b?.classList.remove('active'));
+      if (!safeOverlay) return;
+
+      if (platform === 'none') {
+        safeOverlay.classList.add('overlay-hidden');
+        safeOverlay.classList.remove('overlay-visible');
+        btnGuideNone?.classList.add('active');
+        this.showToast('Guías ocultas: Vista limpia del video', 'info', 1800);
+      } else if (platform === 'tiktok') {
+        safeOverlay.classList.remove('overlay-hidden');
+        safeOverlay.classList.add('overlay-visible');
+        btnGuideTikTok?.classList.add('active');
+        if (safeZoneHeaderLeft) safeZoneHeaderLeft.textContent = 'Siguiendo';
+        if (safeZoneHeaderRight) safeZoneHeaderRight.textContent = 'Para ti';
+        this.showToast('Guías de TikTok activadas: Verifica que el texto no toque la zona de botones', 'info', 2500);
+      } else if (platform === 'reels') {
+        safeOverlay.classList.remove('overlay-hidden');
+        safeOverlay.classList.add('overlay-visible');
+        btnGuideReels?.classList.add('active');
+        if (safeZoneHeaderLeft) safeZoneHeaderLeft.textContent = 'Reels';
+        if (safeZoneHeaderRight) safeZoneHeaderRight.textContent = 'Audio';
+        this.showToast('Guías de Instagram Reels activadas', 'info', 2500);
+      }
+    };
+
+    btnGuideNone?.addEventListener('click', () => setPlatformGuide('none'));
+    btnGuideTikTok?.addEventListener('click', () => setPlatformGuide('tiktok'));
+    btnGuideReels?.addEventListener('click', () => setPlatformGuide('reels'));
 
     // 4. Docker Guide Modal
     const dockerModal = document.getElementById('dockerMcpModal');
