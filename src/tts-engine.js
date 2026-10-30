@@ -184,25 +184,34 @@ export const TTSEngine = {
     // Calculate relative weights based on word length + punctuation pauses
     const weights = rawWords.map((word) => {
       let len = word.length;
-      if (/[,;]/.test(word)) len += 2.5; // Short comma pause
-      if (/[.?!:]/.test(word)) len += 4.5; // Sentence end pause
+      if (/[,;]/.test(word)) len += 2.0; // Short comma pause
+      if (/[.?!:]/.test(word)) len += 3.5; // Sentence end pause
       return Math.max(len, 2);
     });
 
     const totalWeight = weights.reduce((acc, w) => acc + w, 0);
 
-    // Natural 0.18s audio lead-in before first syllable, and 0.4s breath tail
-    const leadInSec = 0.18;
-    const trailSec = 0.4;
-    const spokenDuration = Math.max(totalDurationSec - leadInSec - trailSec, 0.8);
+    // Natural 0.10s audio lead-in before first syllable, and 0.25s breath tail
+    const leadInSec = 0.10;
+    const trailSec = 0.25;
+    const spokenDuration = Math.max(totalDurationSec - leadInSec - trailSec, 0.6);
     let currentStart = leadInSec;
+    let searchPos = 0;
 
     return rawWords.map((word, idx) => {
       const fraction = weights[idx] / totalWeight;
       const duration = spokenDuration * fraction;
+
+      const charIndex = text.indexOf(word, searchPos);
+      if (charIndex >= 0) {
+        searchPos = charIndex + word.length;
+      }
+
       const wordObj = {
         word: word.trim(),
         cleanWord: word.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ]/g, ''),
+        charIndex: charIndex >= 0 ? charIndex : 0,
+        length: word.length,
         startSec: Math.round(currentStart * 100) / 100,
         endSec: Math.round((currentStart + duration) * 100) / 100,
       };
@@ -212,15 +221,28 @@ export const TTSEngine = {
   },
 
   /**
-   * Calculates estimated audio duration for a text at a given rate.
-   * Average conversational speaking rate: ~140-160 words per minute (2.5 words/sec).
+   * Calculates realistic audio duration for a text based on character and syllable cadence.
+   * Calibrated for natural Spanish and multilingual speech pacing.
    */
   estimateDuration(text, rate = 1.15) {
-    const words = text.trim().split(/\s+/).length;
-    const baseWordsPerSec = 2.6 * rate;
-    const estimated = words / baseWordsPerSec;
-    // Minimum 1.8 seconds per scene for comfortable viewing
-    return Math.max(Math.round(estimated * 10) / 10, 1.8);
+    if (!text || !text.trim()) return 2.2;
+    const clean = text.trim();
+
+    // Average speech rate in Spanish/multilingual text: ~14.2 characters per second at 1.0x rate
+    const effectiveRate = Math.max(0.7, Math.min(rate || 1.15, 2.0));
+    const charsPerSec = 14.2 * effectiveRate;
+    const baseSec = clean.length / charsPerSec;
+
+    // Punctuation pauses
+    const commas = (clean.match(/[,;:]/g) || []).length;
+    const periods = (clean.match(/[.?!]/g) || []).length;
+    const pauseSec = commas * 0.18 + periods * 0.32;
+
+    // Natural lead-in and gentle breath cushion before next scene
+    const leadAndTrail = 0.38;
+
+    const total = baseSec + pauseSec + leadAndTrail;
+    return Math.max(Math.round(total * 10) / 10, 2.2);
   },
 
   /**

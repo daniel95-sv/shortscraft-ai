@@ -153,6 +153,7 @@ class AppController {
 
     // Sync UI elements
     this.renderSceneCards();
+    this.updateSceneDisplay(0);
     this.updateMetadataTab();
     this.updateTimeDisplay(0, Compositor.totalDurationSec);
     this.updatePayloadPreview();
@@ -162,6 +163,31 @@ class AppController {
       const moodSelect = document.getElementById('musicMoodSelect');
       if (moodSelect) moodSelect.value = project.musicMood;
     }
+  }
+
+  updateSceneDisplay(sceneIndex = Compositor.currentSceneIndex) {
+    const display = document.getElementById('currentSceneDisplay');
+    if (!display) return;
+    const total = this.currentProject?.scenes?.length || 0;
+    if (total === 0) {
+      display.textContent = 'Escena 0/0';
+    } else {
+      const current = Math.min(Math.max(1, (sceneIndex ?? 0) + 1), total);
+      display.textContent = `Escena ${current}/${total}`;
+    }
+  }
+
+  recalibrateSceneDurations() {
+    if (!this.currentProject || !this.currentProject.scenes) return;
+    this.currentProject.scenes.forEach((scene) => {
+      const estDuration = TTSEngine.estimateDuration(scene.text, Compositor.speechRate);
+      scene.durationSec = estDuration;
+      scene.words = TTSEngine.calculateWordTimestamps(scene.text, scene.durationSec);
+    });
+    Compositor.loadProject(this.currentProject);
+    this.renderSceneCards();
+    this.updateSceneDisplay(Compositor.currentSceneIndex);
+    this.updateTimeDisplay(Compositor.currentTimeSec, Compositor.totalDurationSec);
   }
 
   renderTemplateCards() {
@@ -221,6 +247,7 @@ class AppController {
     const container = document.getElementById('scenesContainer');
     if (!container || !this.currentProject) return;
     container.innerHTML = '';
+    this.updateSceneDisplay(Compositor.currentSceneIndex);
 
     const totalScenes = this.currentProject.scenes.length;
 
@@ -287,6 +314,18 @@ class AppController {
         scene.words = TTSEngine.calculateWordTimestamps(scene.text, scene.durationSec);
         Compositor.requestRender();
         this.updatePayloadPreview();
+      });
+
+      textarea.addEventListener('change', (e) => {
+        scene.text = e.target.value;
+        const autoDuration = TTSEngine.estimateDuration(scene.text, Compositor.speechRate);
+        scene.durationSec = autoDuration;
+        scene.words = TTSEngine.calculateWordTimestamps(scene.text, scene.durationSec);
+        const durInput = card.querySelector('.scene-duration-field');
+        if (durInput) durInput.value = autoDuration;
+        Compositor.loadProject(this.currentProject);
+        this.updateTimeDisplay(Compositor.currentTimeSec, Compositor.totalDurationSec);
+        Compositor.requestRender();
       });
 
       // Search terms editing
@@ -448,10 +487,7 @@ class AppController {
       document.querySelectorAll('.scene-card').forEach((card, idx) => {
         card.classList.toggle('active-scene', idx === sceneIndex);
       });
-      const display = document.getElementById('currentSceneDisplay');
-      if (display && this.currentProject) {
-        display.textContent = `Escena ${sceneIndex + 1}/${this.currentProject.scenes.length}`;
-      }
+      this.updateSceneDisplay(sceneIndex);
     };
 
     Compositor.onPlaybackEnd = () => {
@@ -1037,16 +1073,19 @@ class AppController {
     btnAddScene?.addEventListener('click', () => {
       if (!this.currentProject) return;
       const newId = this.currentProject.scenes.length + 1;
+      const defaultText = 'Nueva escena editable. Añade tu texto aquí.';
+      const autoDuration = TTSEngine.estimateDuration(defaultText, Compositor.speechRate);
       this.currentProject.scenes.push({
         id: newId,
-        text: 'Nueva escena editable. Añade tu texto aquí.',
+        text: defaultText,
         keyword: 'nature ocean',
         searchTerms: ['nature', 'ocean'],
-        durationSec: 4.0,
-        words: TTSEngine.calculateWordTimestamps('Nueva escena editable. Añade tu texto aquí.', 4.0),
+        durationSec: autoDuration,
+        words: TTSEngine.calculateWordTimestamps(defaultText, autoDuration),
       });
       Compositor.loadProject(this.currentProject);
       this.renderSceneCards();
+      this.updateSceneDisplay();
       this.updatePayloadPreview();
     });
 
@@ -1147,6 +1186,7 @@ class AppController {
       this.settings.defaultVoice = e.target.value;
       Compositor.voiceName = e.target.value;
       StorageManager.saveSettings(this.settings);
+      this.recalibrateSceneDurations();
       this.updatePayloadPreview();
     });
 
@@ -1156,7 +1196,9 @@ class AppController {
       const val = parseFloat(e.target.value);
       speechRateDisplay.textContent = `${val.toFixed(2)}x`;
       this.settings.speechRate = val;
+      Compositor.speechRate = val;
       StorageManager.saveSettings(this.settings);
+      this.recalibrateSceneDurations();
     });
 
     const musicVolRange = document.getElementById('musicVolRange');

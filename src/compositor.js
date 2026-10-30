@@ -35,6 +35,13 @@ export const Compositor = {
   currentSceneIndex: 0,
   sceneStartTimes: [],
 
+  // Real-time Speech Sync & Seamless Video Crossfade
+  activeSpeechSceneIndex: -1,
+  activeSpeechWordIndex: -1,
+  isCurrentSceneSpeaking: false,
+  previousSceneIndex: -1,
+  crossfadeDuration: 0.35,
+
   // Settings
   bgType: 'cyber-grid',
   captionStyle: 'hormozi',
@@ -94,6 +101,10 @@ export const Compositor = {
     this.project = project;
     this.currentTimeSec = 0;
     this.currentSceneIndex = 0;
+    this.previousSceneIndex = -1;
+    this.activeSpeechSceneIndex = -1;
+    this.activeSpeechWordIndex = -1;
+    this.isCurrentSceneSpeaking = false;
 
     // Calculate scene timeline offsets and total duration
     let accTime = 0;
@@ -103,14 +114,13 @@ export const Compositor = {
       this.sceneStartTimes.push(accTime);
       accTime += scene.durationSec;
 
-      // Ensure word timestamps exist
-      if (!scene.words || scene.words.length === 0) {
-        scene.words = TTSEngine.calculateWordTimestamps(scene.text, scene.durationSec);
-      }
+      // Ensure word timestamps and character indexes are always accurately computed
+      scene.words = TTSEngine.calculateWordTimestamps(scene.text, scene.durationSec);
     });
 
     this.totalDurationSec = accTime + (this.paddingBackSec || 0);
     this.seek(0);
+    if (this.onSceneChange) this.onSceneChange(0);
     this.requestRender();
   },
 
@@ -212,6 +222,10 @@ export const Compositor = {
     const info = this.getCurrentSceneInfo();
     if (!info || !info.scene) return;
 
+    this.activeSpeechSceneIndex = info.sceneIndex;
+    this.activeSpeechWordIndex = -1;
+    this.isCurrentSceneSpeaking = true;
+
     AudioMixer.setSpeechActive(true);
     TTSEngine.speakText({
       text: info.scene.text,
@@ -220,8 +234,24 @@ export const Compositor = {
       engine: this.ttsEngine || 'webspeech',
       elevenLabsApiKey: this.elevenLabsApiKey || '',
       elevenLabsVoiceId: this.elevenLabsVoiceId || 'CwhRBWXzGAHq8TQ4Fs17',
+      onBoundary: (event) => {
+        if (event.name === 'word' || typeof event.charIndex === 'number') {
+          const charIdx = event.charIndex;
+          const scene = info.scene;
+          if (scene?.words?.length) {
+            const foundIdx = scene.words.findIndex(
+              (w) => charIdx >= w.charIndex && charIdx < w.charIndex + w.length + 1
+            );
+            if (foundIdx >= 0) {
+              this.activeSpeechWordIndex = foundIdx;
+              this.activeSpeechSceneIndex = info.sceneIndex;
+            }
+          }
+        }
+      },
       onEnd: () => {
         AudioMixer.setSpeechActive(false);
+        this.isCurrentSceneSpeaking = false;
       },
     });
   },
@@ -246,30 +276,52 @@ export const Compositor = {
         const prevSceneIdx = this.currentSceneIndex;
         this.currentTimeSec += deltaTime;
 
+        // Pre-warm the upcoming scene's video when current scene is near end
+        const curSceneObj = this.project?.scenes[this.currentSceneIndex];
+        const curSceneStart = this.sceneStartTimes[this.currentSceneIndex] || 0;
+        const curSceneDuration = curSceneObj?.durationSec || 4;
+        const timeUntilSceneEnd = (curSceneStart + curSceneDuration) - this.currentTimeSec;
+
+        if (timeUntilSceneEnd > 0 && timeUntilSceneEnd < 0.6) {
+          const nextScene = this.project?.scenes[this.currentSceneIndex + 1];
+          if (nextScene) {
+            const nextMedia = MediaService.getCustomMedia(nextScene.id);
+            if (nextMedia?.type === 'video' && nextMedia.element && nextMedia.element.paused) {
+              nextMedia.element.currentTime = 0;
+              nextMedia.element.play().catch(() => {});
+            }
+          }
+        }
+
         // Check scene transition
         const info = this.getCurrentSceneInfo();
         if (info && info.sceneIndex !== prevSceneIdx) {
-          // Pause previous scene's video if applicable
-          const prevScene = this.project.scenes[prevSceneIdx];
-          if (prevScene) {
-            const prevMedia = MediaService.getCustomMedia(prevScene.id);
-            if (prevMedia?.type === 'video' && prevMedia.element && !prevMedia.element.paused) {
-              prevMedia.element.pause();
-            }
-          }
-
+          this.previousSceneIndex = prevSceneIdx;
           this.currentSceneIndex = info.sceneIndex;
-          AudioMixer.playSfx('whoosh');
+
           if (this.onSceneChange) this.onSceneChange(this.currentSceneIndex);
           this.speakCurrentScene();
 
-          // Start current scene's video if present
+          // Ensure current scene video is playing smoothly
           if (info.scene) {
             const curMedia = MediaService.getCustomMedia(info.scene.id);
-            if (curMedia?.type === 'video' && curMedia.element) {
-              curMedia.element.currentTime = 0;
+            if (curMedia?.type === 'video' && curMedia.element && curMedia.element.paused) {
               curMedia.element.play().catch(() => {});
             }
+          }
+
+          // Gracefully pause previous video after crossfade transition completes (0.45s later)
+          const oldScene = this.project?.scenes[prevSceneIdx];
+          if (oldScene) {
+            const oldIdx = prevSceneIdx;
+            setTimeout(() => {
+              if (this.currentSceneIndex !== oldIdx) {
+                const oldMedia = MediaService.getCustomMedia(oldScene.id);
+                if (oldMedia?.type === 'video' && oldMedia.element && !oldMedia.element.paused) {
+                  oldMedia.element.pause();
+                }
+              }
+            }, 450);
           }
         }
 
@@ -321,14 +373,18 @@ export const Compositor = {
     const currentScene = info?.scene;
     const sceneElapsed = info?.sceneElapsed || 0;
 
-    // 1. LAYER: Background (Optimized procedural FX or user clip)
+    // 1. LAYER: Background (Optimized procedural FX or user clip with smooth crossfade)
     this.drawBackground(ctx, w, h, timeSec, currentScene);
 
     // 2. LAYER: Subtle Vignette & Gradient Contrast Overlay
     this.drawContrastOverlay(ctx, w, h);
 
-    // 3. LAYER: Kinetic Captions
+    // 3. LAYER: Kinetic Captions (Synchronized to voice)
     if (currentScene && currentScene.words) {
+      const activeWordIdx = (this.activeSpeechSceneIndex === info?.sceneIndex && this.activeSpeechWordIndex >= 0)
+        ? this.activeSpeechWordIndex
+        : -1;
+
       CaptionAnimator.drawCaptions({
         ctx,
         canvasWidth: w,
@@ -340,6 +396,7 @@ export const Compositor = {
         yPercent: this.captionYPercent,
         customColors: this.customColors,
         fontFamilyOverride: this.fontFamily,
+        activeWordIndexOverride: activeWordIdx,
       });
     }
 
@@ -349,8 +406,13 @@ export const Compositor = {
     }
   },
 
-  drawBackground(ctx, w, h, timeSec, currentScene) {
-    const customMedia = currentScene ? MediaService.getCustomMedia(currentScene.id) : null;
+  /**
+   * Draws a single media item (video, image, or procedural fallback) with opacity control
+   */
+  drawMediaItem(ctx, w, h, customMedia, currentScene, timeSec, alpha = 1.0) {
+    if (alpha <= 0.01) return false;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1.0, Math.max(0.0, alpha));
 
     if (customMedia) {
       if (customMedia.type === 'video' && customMedia.element) {
@@ -370,13 +432,14 @@ export const Compositor = {
           const dw = vw * scale;
           const dh = vh * scale;
           ctx.drawImage(vid, (w - dw) / 2, (h - dh) / 2, dw, dh);
-          return;
+          ctx.restore();
+          return true;
         }
       } else if (customMedia.type === 'image' && customMedia.element) {
         const img = customMedia.element;
         const vw = img.naturalWidth || img.width || w;
         const vh = img.naturalHeight || img.height || h;
-        
+
         // Ken Burns cinematic zoom: smooth 7% camera push over scene duration
         const sceneProg = currentScene?.durationSec ? Math.min(1, Math.max(0, (timeSec % currentScene.durationSec) / currentScene.durationSec)) : ((timeSec % 5) / 5);
         const subtleZoom = 1.0 + (sceneProg * 0.08);
@@ -384,13 +447,41 @@ export const Compositor = {
         const dw = vw * scale;
         const dh = vh * scale;
         ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
-        return;
+        ctx.restore();
+        return true;
       }
     }
 
     // Procedural high-performance motion graphics (fallback or default)
     const bgRenderer = MediaService.proceduralBackgrounds[this.bgType] || MediaService.proceduralBackgrounds['cyber-grid'];
     bgRenderer.draw(ctx, w, h, timeSec);
+    ctx.restore();
+    return true;
+  },
+
+  drawBackground(ctx, w, h, timeSec, currentScene) {
+    const curMedia = currentScene ? MediaService.getCustomMedia(currentScene.id) : null;
+    const sceneElapsed = this.getCurrentSceneInfo()?.sceneElapsed || 0;
+
+    // Check if we are in the crossfade dissolve window with the previous scene
+    const isCrossfading = this.previousSceneIndex >= 0 &&
+      this.previousSceneIndex !== this.currentSceneIndex &&
+      sceneElapsed < this.crossfadeDuration &&
+      this.project?.scenes[this.previousSceneIndex];
+
+    if (isCrossfading) {
+      const prevScene = this.project.scenes[this.previousSceneIndex];
+      const prevMedia = MediaService.getCustomMedia(prevScene.id);
+      const crossfadeProg = Math.min(1.0, Math.max(0.0, sceneElapsed / this.crossfadeDuration));
+
+      // Draw outgoing scene
+      this.drawMediaItem(ctx, w, h, prevMedia, prevScene, timeSec, 1.0);
+      // Blend incoming scene smoothly over it
+      this.drawMediaItem(ctx, w, h, curMedia, currentScene, timeSec, crossfadeProg);
+    } else {
+      // Normal playback
+      this.drawMediaItem(ctx, w, h, curMedia, currentScene, timeSec, 1.0);
+    }
   },
 
   drawContrastOverlay(ctx, w, h) {

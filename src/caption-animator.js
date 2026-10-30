@@ -15,8 +15,8 @@ export const CaptionAnimator = {
       activeColor: '#FACC15', // Vibrant yellow
       textColor: '#FFFFFF',
       strokeColor: '#000000',
-      strokeWidthRatio: 0.16,
-      scaleActive: 1.18,
+      strokeWidthRatio: 0.11, // Calibrated so letters stay crisp without overlapping
+      scaleActive: 1.15,
       uppercase: true,
       shadowBlur: 6,
       shadowColor: 'rgba(0, 0, 0, 0.8)',
@@ -29,8 +29,8 @@ export const CaptionAnimator = {
       activeColor: '#38BDF8', // Cyan
       textColor: '#FFFFFF',
       strokeColor: '#000000',
-      strokeWidthRatio: 0.18,
-      scaleActive: 1.22,
+      strokeWidthRatio: 0.12,
+      scaleActive: 1.16,
       uppercase: true,
       hasBadge: true,
       badgeColor: '#E11D48', // Vibrant red
@@ -45,7 +45,7 @@ export const CaptionAnimator = {
       activeColor: '#22D3EE', // Electric cyan
       textColor: '#F8FAFC',
       strokeColor: '#0F172A',
-      strokeWidthRatio: 0.1,
+      strokeWidthRatio: 0.08,
       scaleActive: 1.12,
       uppercase: true,
       shadowBlur: 10,
@@ -59,7 +59,7 @@ export const CaptionAnimator = {
       activeColor: '#60A5FA',
       textColor: '#FFFFFF',
       strokeColor: 'rgba(0, 0, 0, 0.6)',
-      strokeWidthRatio: 0.08,
+      strokeWidthRatio: 0.06,
       scaleActive: 1.08,
       uppercase: false,
       hasPill: true,
@@ -74,8 +74,8 @@ export const CaptionAnimator = {
       activeColor: '#FF3B00',
       textColor: '#FFFFFF',
       strokeColor: '#000000',
-      strokeWidthRatio: 0.16,
-      scaleActive: 1.16,
+      strokeWidthRatio: 0.11,
+      scaleActive: 1.15,
       uppercase: true,
       shadowBlur: 18,
       shadowColor: '#FF5500',
@@ -88,7 +88,7 @@ export const CaptionAnimator = {
       activeColor: '#FFE600',
       textColor: '#FFFFFF',
       strokeColor: '#000000',
-      strokeWidthRatio: 0.12,
+      strokeWidthRatio: 0.10,
       scaleActive: 1.10,
       uppercase: true,
       hasPill: true,
@@ -103,8 +103,8 @@ export const CaptionAnimator = {
       activeColor: '#4ADE80',
       textColor: '#F3F4F6',
       strokeColor: '#1E1B4B',
-      strokeWidthRatio: 0.14,
-      scaleActive: 1.15,
+      strokeWidthRatio: 0.10,
+      scaleActive: 1.14,
       uppercase: true,
       shadowBlur: 8,
       shadowColor: '#10B981',
@@ -125,6 +125,7 @@ export const CaptionAnimator = {
     yPercent = 70, // 70% from top (ideal 9:16 Shorts viewing zone)
     customColors = null,
     fontFamilyOverride = null,
+    activeWordIndexOverride = -1,
   }) {
     if (!words || words.length === 0) return;
 
@@ -133,35 +134,34 @@ export const CaptionAnimator = {
     const primaryColor = customColors?.primaryColor || style.textColor;
     const strokeColor = customColors?.strokeColor || style.strokeColor;
     const scale = canvasWidth / 1080;
-    // 1. SYNCHRONIZATION: Do NOT show captions before the voice begins speaking
-    const firstWordStart = words[0]?.startSec ?? 0;
-    if (sceneElapsedSec < firstWordStart) {
-      return; // Clean canvas before audio starts
-    }
 
-    // 2. DISMISSAL: Disappear gracefully 0.45s after the final word is spoken
-    const lastWordEnd = words[words.length - 1]?.endSec ?? 0;
-    if (sceneElapsedSec > lastWordEnd + 0.45) {
-      return; // Clean background until next scene
+    // 1. SYNCHRONIZATION: Only hold before first word if no active boundary is currently speaking
+    const firstWordStart = words[0]?.startSec ?? 0;
+    if (activeWordIndexOverride < 0 && sceneElapsedSec < Math.max(0, firstWordStart - 0.05)) {
+      return; // Clean canvas before audio starts
     }
 
     // Determine currently spoken word index
     let activeWordIndex = -1;
-    for (let i = 0; i < words.length; i++) {
-      if (sceneElapsedSec >= words[i].startSec && sceneElapsedSec <= words[i].endSec) {
-        activeWordIndex = i;
-        break;
-      }
-    }
-    // If between words or in trailing pause before scene end, highlight active or last spoken
-    if (activeWordIndex === -1 && sceneElapsedSec >= firstWordStart && sceneElapsedSec <= lastWordEnd + 0.45) {
-      for (let i = words.length - 1; i >= 0; i--) {
-        if (sceneElapsedSec >= words[i].endSec) {
+    if (activeWordIndexOverride >= 0 && activeWordIndexOverride < words.length) {
+      activeWordIndex = activeWordIndexOverride;
+    } else {
+      for (let i = 0; i < words.length; i++) {
+        if (sceneElapsedSec >= words[i].startSec && sceneElapsedSec <= words[i].endSec) {
           activeWordIndex = i;
           break;
         }
       }
-      if (activeWordIndex === -1) activeWordIndex = 0;
+      // If between words or in trailing pause before scene end, highlight active or last spoken
+      if (activeWordIndex === -1 && sceneElapsedSec >= firstWordStart) {
+        for (let i = words.length - 1; i >= 0; i--) {
+          if (sceneElapsedSec >= words[i].endSec) {
+            activeWordIndex = i;
+            break;
+          }
+        }
+        if (activeWordIndex === -1) activeWordIndex = 0;
+      }
     }
 
     ctx.save();
@@ -179,7 +179,18 @@ export const CaptionAnimator = {
     let currentFontSize = fontSize;
     const effectiveFontFamily = fontFamilyOverride ? `'${fontFamilyOverride}', ${style.fontFamily}` : style.fontFamily;
     ctx.font = `${style.fontWeight} ${Math.round(currentFontSize)}px ${effectiveFontFamily}`;
-    const wordSpacings = Math.round(18 * scale);
+
+    // Generous letter spacing so letters in condensed fonts (like Anton/Montserrat) never touch or overlap
+    const letterSpacingPx = Math.max(2, Math.round(currentFontSize * 0.045));
+    if ('letterSpacing' in ctx) {
+      ctx.letterSpacing = `${letterSpacingPx}px`;
+    }
+
+    // Proportional word spacing + clearance buffer for the active word pop-in scale animation
+    const scaleFactor = style.scaleActive || 1.15;
+    const baseWordSpacing = Math.round(currentFontSize * 0.42);
+    const activeExpansionClearance = Math.round(currentFontSize * (scaleFactor - 1.0) * 0.85);
+    const wordSpacings = baseWordSpacing + activeExpansionClearance;
 
     let measuredWords = chunkWords.map((item, localIdx) => {
       const globalIdx = currentChunkIndex * chunkSize + localIdx;
@@ -198,12 +209,15 @@ export const CaptionAnimator = {
     let totalChunkWidth =
       measuredWords.reduce((sum, w) => sum + w.width, 0) + (measuredWords.length - 1) * wordSpacings;
 
-    // MARGIN SAFETY GUARANTEE: Never exceed 84% of canvas width (leaves >= 8% margin on each side)
-    const maxSafeWidth = canvasWidth * 0.84;
+    // MARGIN SAFETY GUARANTEE: Never exceed 86% of canvas width (leaves >= 7% margin on each side)
+    const maxSafeWidth = canvasWidth * 0.86;
     if (totalChunkWidth > maxSafeWidth && totalChunkWidth > 0) {
       const shrinkFactor = maxSafeWidth / totalChunkWidth;
-      currentFontSize = Math.max(Math.round(fontSize * shrinkFactor), Math.round(20 * scale));
+      currentFontSize = Math.max(Math.round(fontSize * shrinkFactor), Math.round(18 * scale));
       ctx.font = `${style.fontWeight} ${Math.round(currentFontSize)}px ${effectiveFontFamily}`;
+      if ('letterSpacing' in ctx) {
+        ctx.letterSpacing = `${Math.max(1, Math.round(currentFontSize * 0.04))}px`;
+      }
 
       // Recalculate with scaled font
       measuredWords = chunkWords.map((item, localIdx) => {
@@ -224,7 +238,7 @@ export const CaptionAnimator = {
         measuredWords.reduce((sum, w) => sum + w.width, 0) + (measuredWords.length - 1) * wordSpacings;
     }
 
-    const strokeWidth = currentFontSize * style.strokeWidthRatio;
+    const strokeWidth = currentFontSize * (style.strokeWidthRatio || 0.11);
 
     // Draw frosted glass pill or cineasta box backdrop if enabled
     if (style.hasPill) {
@@ -290,6 +304,9 @@ export const CaptionAnimator = {
       startX += width + wordSpacings;
     });
 
+    if ('letterSpacing' in ctx) {
+      ctx.letterSpacing = '0px';
+    }
     ctx.restore();
   },
 };
